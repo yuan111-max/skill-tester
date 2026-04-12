@@ -23,6 +23,9 @@ Tests and evaluates any Claude Code skill for structural validity, quality, and 
 ## Usage
 
 ```bash
+git clone https://github.com/topprismdata/skill-tester.git
+cd skill-tester
+chmod +x scripts/run_tests.py
 python3 scripts/run_tests.py <skill-dir>
 ```
 

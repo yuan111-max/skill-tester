@@ -12,7 +12,14 @@ import os
 import re
 import sys
 import argparse
+import subprocess
 from pathlib import Path
+
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
 
 # ─── Stage 1: Analysis ────────────────────────────────────────────────────────
 
@@ -31,10 +38,17 @@ def analyze_skill(skill_dir: Path) -> dict:
 
     frontmatter = fm_match.group(1)
     fm = {}
-    for line in frontmatter.splitlines():
-        if ':' in line:
-            key, _, val = line.partition(':')
-            fm[key.strip()] = val.strip()
+    if HAS_YAML:
+        try:
+            fm = yaml.safe_load(frontmatter) or {}
+        except Exception:
+            pass  # fall through to regex
+    if not fm:
+        # Fallback regex parser — only used if PyYAML unavailable
+        for line in frontmatter.splitlines():
+            if ':' in line:
+                key, _, val = line.partition(':')
+                fm[key.strip()] = val.strip().strip('"').strip("'")
 
     # Structural checks
     issues = []
@@ -49,10 +63,13 @@ def analyze_skill(skill_dir: Path) -> dict:
     if len(fm.get('description', '')) < 20:
         issues.append("'description' is too short (< 20 chars)")
 
-    # Check bundle structure
-    has_scripts = (skill_dir / "scripts").exists() and any((skill_dir / "scripts").iterdir())
-    has_references = (skill_dir / "references").exists() and any((skill_dir / "references").iterdir())
-    has_assets = (skill_dir / "assets").exists() and any((skill_dir / "assets").iterdir())
+    # Check bundle structure — exclude hidden files (fixes macOS .DS_Store false positive)
+    def _has_visible_entries(path: Path) -> bool:
+        return path.exists() and any(f.is_file() and not f.name.startswith('.') for f in path.iterdir())
+
+    has_scripts    = _has_visible_entries(skill_dir / "scripts")
+    has_references = _has_visible_entries(skill_dir / "references")
+    has_assets     = _has_visible_entries(skill_dir / "assets")
 
     return {
         "name": fm.get("name", "unknown"),
