@@ -1,4 +1,5 @@
 # skill-tester
+<<<<<<< HEAD
 
 **4-Stage pipeline + 4D scoring for Claude Code skill evaluation.**
 
@@ -207,3 +208,6 @@ python scripts/run_tests.py .
 ## License
 
 MIT
+=======
+技能多而繁杂，良莠不齐，skill-tester实现对一个技能的多维度评估并给出建议
+>>>>>>> ba4a4f0396cb5f188abfc1a87f79f95e5969b299
