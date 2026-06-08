@@ -7,6 +7,7 @@ aggregates to a weighted final score, and maps it to a deployment tier.
 from __future__ import annotations
 
 import re
+import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -50,6 +51,12 @@ def evaluate(
     for dim_name, dim_cfg in dimensions_cfg.items():
         score_fn = _SCORERS.get(dim_name)
         if score_fn is None:
+            registered = ", ".join(sorted(_SCORERS.keys()))
+            warnings.warn(
+                f"Dimension '{dim_name}' is configured for scoring but has no "
+                f"registered scorer. Registered: [{registered}]. This dimension "
+                f"will be excluded from the final score."
+            )
             continue
         score, detail = score_fn(analysis, test_data, execution_result, config)
         scores[dim_name] = round(score, 2)
@@ -75,7 +82,7 @@ def evaluate(
 
 # ── Scorer registry ──────────────────────────────────────────────────────
 
-_SCORERS = {}
+_SCORERS: Dict[str, Any] = {}
 
 
 def _scorer(name: str):
@@ -217,12 +224,14 @@ def _score_code(
         validity = 10  # No scripts = no syntax errors = N/A treated as full score
 
     # 3. Error handling proxy (0-10)
-    # Count scripts that actually contain try/except (pre-computed in analyze.py)
-    eh_score = 5  # baseline
-    for r in script_list:
-        if r.get("has_try_except"):
-            eh_score += 1
-    eh_score = min(10, eh_score)
+    # Proportional to the ratio of scripts with try/except, with a baseline
+    # of 2 to avoid harshly penalising skills with few scripts.
+    if total_count > 0:
+        eh_count = sum(1 for r in script_list if r.get("has_try_except"))
+        eh_ratio = eh_count / total_count
+        eh_score = 2 + eh_ratio * 8  # baseline 2 + proportional 0-8
+    else:
+        eh_score = 10  # No scripts = N/A
 
     # 4. Script documentation (0-10)
     if total_count > 0:
@@ -385,15 +394,23 @@ def _score_usability(
 # ── Helpers ──────────────────────────────────────────────────────────────
 
 
-def _sub_weights(config: Dict[str, Any], dim_name: str, subs: Dict[str, float]) -> Dict[str, float]:
+def _sub_weights(config: Dict[str, Any], dim_name: str, subs: Dict[str, Any]) -> Dict[str, float]:
     """Extract sub-score weights from config, falling back to uniform."""
     dim_cfg = config.get("scoring", {}).get("dimensions", {}).get(dim_name, {})
     sub_cfgs = dim_cfg.get("sub_scores", [])
     if sub_cfgs:
         weights = {}
         for sc in sub_cfgs:
-            if sc.get("name") in subs:
-                weights[sc["name"]] = sc.get("weight", 0)
+            sc_name = sc.get("name", "")
+            if sc_name in subs:
+                weights[sc_name] = sc.get("weight", 0)
+            else:
+                known = ", ".join(sorted(subs.keys()))
+                warnings.warn(
+                    f"Sub-score '{sc_name}' configured for dimension "
+                    f"'{dim_name}' is not produced by the scorer. "
+                    f"Known sub-scores: [{known}]. This sub-score will be ignored."
+                )
         # Normalise
         total_w = sum(weights.values())
         if total_w > 0:
@@ -403,5 +420,24 @@ def _sub_weights(config: Dict[str, Any], dim_name: str, subs: Dict[str, float]) 
 
 
 def _read_skill_body(analysis: Dict[str, Any]) -> str:
-    """Read SKILL.md body stashed by the pipeline in analysis['_body']."""
+    """Read SKILL.md body stashed by the pipeline in analysis['_body'].
+
+    The pipeline (``_run_pipeline`` in ``run_tests.py``) injects the raw
+    SKILL.md body under the ``_body`` key before calling ``evaluate()``.
+    When ``evaluate()`` is called independently (e.g. in tests), this key
+    will be absent and Usability scoring silently degrades — consider
+    setting ``analysis["_body"]`` to the skill content for accurate scores.
+    """
+    global _body_missing_warned
+    body = analysis.get("_body")
+    if not body and not _body_missing_warned:
+        _body_missing_warned = True
+        warnings.warn(
+            "analysis['_body'] is missing — Usability scoring will be degraded. "
+            "Call evaluate() via the pipeline (run_tests._run_pipeline) or set "
+            "analysis['_body'] = skill_content before calling evaluate()."
+        )
     return analysis.get("_body", "")
+
+
+_body_missing_warned = False

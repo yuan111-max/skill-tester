@@ -12,15 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 try:
     import yaml
 except ImportError:
-    yaml = None  # type: ignore[assignment]
-
-
-# Fallback defaults for frontmatter validation (used when config YAML is sparse)
-_FRONTMATTER_DEFAULTS = {
-    "min_description_length": 20,
-    "check_name_format": True,
-    "check_angle_brackets": True,
-}
+    yaml = None
 
 
 # ── Public API ───────────────────────────────────────────────────────────
@@ -101,12 +93,11 @@ def _parse_frontmatter(content: str, config: Dict[str, Any]) -> Tuple[Dict[str, 
         issues.append("PyYAML not installed — frontmatter parsing degraded")
 
     analysis_cfg = config.get("analysis", {})
-    fm_defaults = _FRONTMATTER_DEFAULTS
 
     # Validate known fields
     if not fm.get("name"):
         issues.append("Missing or empty 'name' in frontmatter")
-    elif analysis_cfg.get("check_name_format", fm_defaults["check_name_format"]) and not re.match(
+    elif analysis_cfg.get("check_name_format", True) and not re.match(
         r"^[a-z0-9][a-z0-9_-]*[a-z0-9]$", str(fm["name"])
     ):
         issues.append(f"'name' should be lowercase-hyphenated, got '{fm['name']}'")
@@ -114,12 +105,12 @@ def _parse_frontmatter(content: str, config: Dict[str, Any]) -> Tuple[Dict[str, 
     desc = fm.get("description", "")
     if not desc:
         issues.append("Missing or empty 'description' in frontmatter")
-    elif analysis_cfg.get("check_angle_brackets", fm_defaults["check_angle_brackets"]) and ("<" in desc or ">" in desc):
+    elif analysis_cfg.get("check_angle_brackets", True) and ("<" in desc or ">" in desc):
         issues.append("'description' contains angle brackets (folded-scalar bug?)")
-    elif len(desc) < analysis_cfg.get("min_description_length", fm_defaults["min_description_length"]):
+    elif len(desc) < analysis_cfg.get("min_description_length", 20):
         issues.append(
             f"'description' too short ({len(desc)} < "
-            f"{analysis_cfg.get('min_description_length', fm_defaults['min_description_length'])} chars)"
+            f"{analysis_cfg.get('min_description_length', 20)} chars)"
         )
 
     return fm, issues
@@ -137,11 +128,16 @@ def _analyze_content_structure(content: str, config: Dict[str, Any]) -> Dict[str
     examples = re.findall(r"```", content)
     example_count = len(examples) // 2  # each block has opening + closing
 
-    # Check for required section keywords
+    # Check for required section keywords (word-boundary match prevents
+    # "stage" from matching "Staging" or "Stagecoach", though "Stage 1"
+    # still counts as a Stage section — intentional).
     required = config.get("analysis", {}).get("required_sections", [])
     missing_required = [
         req for req in required
-        if not any(req.lower() in s.lower() for s in sections)
+        if not any(
+            re.search(rf"\b{re.escape(req)}\b", s, re.IGNORECASE)
+            for s in sections
+        )
     ]
 
     # Line count

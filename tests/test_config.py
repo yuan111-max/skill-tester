@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 from typing import Any, Dict
 
 import pytest
@@ -58,6 +59,34 @@ class TestLoadConfig:
             assert "pattern" in rule
             assert "type" in rule
             assert "severity" in rule
+
+    def test_script_extensions_includes_all_types(self):
+        """Default config should include all supported script extensions."""
+        config = load_config()
+        exts = config.get("analysis", {}).get("script_extensions", [])
+        assert ".py" in exts
+        assert ".sh" in exts
+        assert ".js" in exts
+        assert ".ts" in exts
+        assert ".rb" in exts
+        assert ".go" in exts
+
+    def test_warns_when_pyyaml_missing(self, recwarn):
+        """When PyYAML is unavailable, load_config should warn."""
+        import scripts.config as cfg
+        saved = cfg.yaml
+        cfg.yaml = None
+        try:
+            config = cfg.load_config()
+            # Should still return a valid dict
+            assert "scoring" in config
+            assert "analysis" in config
+            # Should have warned about missing PyYAML
+            assert len(recwarn) >= 1
+            warning_msg = str(recwarn[0].message)
+            assert "PyYAML" in warning_msg
+        finally:
+            cfg.yaml = saved
 
 
 class TestDeepMerge:
@@ -161,3 +190,38 @@ class TestValidateDimensionWeights:
         validate_dimension_weights({})
         assert len(recwarn) == 1  # 0.0 != 1.0
         assert "sum to" in str(recwarn[0].message)
+
+
+class TestMergeFromFile:
+    """Tests for _merge_from_file()."""
+
+    def test_nonexistent_file_returns_silently(self, recwarn):
+        """A non-existent file should be skipped without warning."""
+        from scripts.config import _merge_from_file
+        config = {"a": 1}
+        _merge_from_file(config, Path("/nonexistent/path/config.yaml"))
+        assert config == {"a": 1}
+        assert len(recwarn) == 0
+
+    def test_invalid_yaml_warns(self, tmp_path: Path, recwarn):
+        """A file with invalid YAML content should warn."""
+        from scripts.config import _merge_from_file
+        bad_file = tmp_path / "bad.yaml"
+        bad_file.write_text(": : invalid yaml : :\n")
+        config = {"a": 1}
+        _merge_from_file(config, bad_file)
+        assert len(recwarn) >= 1
+        assert "YAML" in str(recwarn[0].message)
+
+    def test_valid_yaml_merges_successfully(self, tmp_path: Path, recwarn):
+        """A valid YAML file should deep-merge into config."""
+        from scripts.config import _merge_from_file
+        valid_file = tmp_path / "valid.yaml"
+        valid_file.write_text("b: 2\nc:\n  d: 3\n")
+        config = {"a": 1, "c": {"e": 4}}
+        _merge_from_file(config, valid_file)
+        assert config["a"] == 1
+        assert config["b"] == 2
+        assert config["c"]["d"] == 3
+        assert config["c"]["e"] == 4  # preserved from original
+        assert len(recwarn) == 0

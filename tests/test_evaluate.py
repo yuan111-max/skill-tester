@@ -96,6 +96,88 @@ class TestEvaluate:
         assert _resolve(0.0, tiers) == "REJECT"
 
 
+    def test_warns_on_unregistered_dimension(self, good_skill_dir: Path, recwarn):
+        """A dimension configured but without a scorer should warn."""
+        config_with_extra = {
+            "scoring": {
+                "dimensions": {
+                    "Documentation": {"weight": 0.20},
+                    "Code": {"weight": 0.20},
+                    "Completeness": {"weight": 0.20},
+                    "Usability": {"weight": 0.20},
+                    "Performance": {"weight": 0.20},  # No scorer registered
+                },
+                "tiers": {"STANDARD": {"min": 7.0, "action": "Ok"}, "REJECT": {"min": 0.0, "action": "Fix"}},
+            },
+            "analysis": {"min_description_length": 20, "check_angle_brackets": True,
+                         "check_todo_placeholders": True, "check_name_format": True,
+                         "required_sections": [], "min_examples": 2, "script_extensions": [".py", ".sh"]},
+            "execution": {"enabled": False, "claude_command": "claude", "timeout_seconds": 180, "max_tests": 10},
+            "anti_patterns": [],
+            "output": {"default_format": "summary", "max_description_preview": 80},
+        }
+        analysis = analyze_skill(good_skill_dir, config_with_extra)
+        test_data = generate_tests(good_skill_dir, analysis, config_with_extra)
+        exec_result = {"executed": False, "results": [], "summary": {}, "stats": {}}
+        ev = evaluate(analysis, test_data, exec_result, config_with_extra)
+        # Should warn about 'Performance'
+        warnings_text = " ".join(str(w.message) for w in recwarn.list)
+        assert "Performance" in warnings_text
+        assert ev["final"] > 0  # Only 4 real dimensions, so final should still be > 0
+
+    def test_warns_on_unknown_sub_score(self, good_skill_dir: Path, recwarn):
+        """A sub-score in config not produced by the scorer should warn."""
+        config_with_extra_sub = {
+            "scoring": {
+                "dimensions": {
+                    "Documentation": {
+                        "weight": 0.25,
+                        "sub_scores": [
+                            {"name": "frontmatter_validity", "weight": 0.15},
+                            {"name": "section_coverage", "weight": 0.25},
+                            {"name": "example_density", "weight": 0.20},
+                            {"name": "specificity_and_clarity", "weight": 0.25},
+                            {"name": "trigger_clarity", "weight": 0.10},
+                            {"name": "nonexistent_sub_score", "weight": 0.05},  # unknown
+                        ],
+                    },
+                    "Code": {"weight": 0.25},
+                    "Completeness": {"weight": 0.25},
+                    "Usability": {"weight": 0.25},
+                },
+                "tiers": {"STANDARD": {"min": 7.0, "action": "Ok"}, "REJECT": {"min": 0.0, "action": "Fix"}},
+            },
+            "analysis": {"min_description_length": 20, "check_angle_brackets": True,
+                         "check_todo_placeholders": True, "check_name_format": True,
+                         "required_sections": [], "min_examples": 2, "script_extensions": [".py", ".sh"]},
+            "execution": {"enabled": False, "claude_command": "claude", "timeout_seconds": 180, "max_tests": 10},
+            "anti_patterns": [],
+            "output": {"default_format": "summary", "max_description_preview": 80},
+        }
+        analysis = analyze_skill(good_skill_dir, config_with_extra_sub)
+        test_data = generate_tests(good_skill_dir, analysis, config_with_extra_sub)
+        exec_result = {"executed": False, "results": [], "summary": {}, "stats": {}}
+        evaluate(analysis, test_data, exec_result, config_with_extra_sub)
+        warnings_text = " ".join(str(w.message) for w in recwarn.list)
+        assert "nonexistent_sub_score" in warnings_text
+
+
+class TestReadSkillBody:
+    """Tests for _read_skill_body()."""
+
+    def test_returns_body_when_present(self):
+        """When _body is set, it should be returned."""
+        from scripts.evaluate import _read_skill_body
+        analysis = {"_body": "## Section\nContent here"}
+        assert _read_skill_body(analysis) == "## Section\nContent here"
+
+    def test_returns_empty_when_missing(self):
+        """When _body is absent, empty string should be returned."""
+        from scripts.evaluate import _read_skill_body
+        analysis = {"name": "test"}
+        assert _read_skill_body(analysis) == ""
+
+
 def _resolve(score: float, tiers: Dict[str, Any]) -> str:
     """Helper: resolve tier without running full pipeline."""
     from scripts.config import resolve_tier

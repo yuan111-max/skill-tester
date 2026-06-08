@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 try:
     import yaml
 except ImportError:  # pragma: no cover
-    yaml = None  # type: ignore[assignment]
+    yaml = None
 
 
 _DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "default.yaml"
@@ -40,11 +40,10 @@ _FALLBACK_CONFIG: Dict[str, Any] = {
     "analysis": {
         "min_description_length": 20,
         "check_angle_brackets": True,
-        "check_todo_placeholders": True,
         "check_name_format": True,
         "required_sections": ["when to use", "stage"],
         "min_examples": 2,
-        "script_extensions": [".py", ".sh"],
+        "script_extensions": [".py", ".sh", ".js", ".ts", ".rb", ".go"],
     },
     "execution": {
         "enabled": False,
@@ -68,7 +67,6 @@ _FALLBACK_CONFIG: Dict[str, Any] = {
     ],
     "output": {
         "default_format": "summary",
-        "max_description_preview": 80,
     },
 }
 
@@ -84,6 +82,11 @@ def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
     config: Dict[str, Any] = copy.deepcopy(_FALLBACK_CONFIG)
 
     if yaml is None:
+        warnings.warn(
+            "PyYAML is not installed — default.yaml and local.yaml will be ignored. "
+            "Install via 'pip install PyYAML>=6.0' for full functionality "
+            "(multi-extension script validation, dimension weights, tier config)."
+        )
         return config  # pragma: no cover
 
     # 1. Ship-default config

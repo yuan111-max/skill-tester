@@ -79,9 +79,7 @@ scoring:
 # ── Analysis settings ────────────────────────────────────────────────────
 analysis:
   min_description_length: 20
-  max_section_depth: 3
   check_angle_brackets: true
-  check_todo_placeholders: true
   check_name_format: true
   # Minimum distinct sections a well-formed SKILL.md should have
   required_sections:
@@ -108,8 +106,6 @@ execution:
   timeout_seconds: 180
   # Max test prompts to execute (0 = unlimited)
   max_tests: 10
-  # Model temperature (0.0 = deterministic)
-  temperature: 0.0
   # Additional CLI args for the claude command
   claude_args:
     - "--non-interactive"
@@ -141,5 +137,3 @@ anti_patterns:
 # ── Output formatting ────────────────────────────────────────────────────
 output:
   default_format: "summary"  # summary | json | table
-  color_enabled: true
-  max_description_preview: 80

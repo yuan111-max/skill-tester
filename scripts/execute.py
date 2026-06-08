@@ -116,7 +116,7 @@ def _run_tests(
     )
 
     n = len(tests)
-    results: List[Dict[str, Any]] = [None] * n  # ordered result slots
+    results: List[Optional[Dict[str, Any]]] = [None] * n  # ordered result slots
     stats = {"total": n, "passed": 0, "failed": 0, "error": 0, "skipped": 0}
 
     if n == 0:

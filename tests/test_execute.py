@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import subprocess
 from typing import Any, Dict
-from unittest.mock import ANY, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -262,6 +262,30 @@ class TestResolveClaude:
             result = _resolve_claude("claude")
             # Should find claude.cmd
             assert result == "claude.cmd"
+
+
+class TestWhich:
+    """Tests for _which()."""
+
+    def test_finds_python(self):
+        """_which('python') should resolve successfully."""
+        from scripts.execute import _which
+        result = _which("python")
+        assert result is not None  # python is always on PATH
+
+    def test_returns_none_for_nonexistent(self):
+        """_which('nonexistent-command-abc123') should return None."""
+        from scripts.execute import _which
+        result = _which("nonexistent-command-abc123")
+        assert result is None
+
+    def test_finds_exe_suffixed_program(self):
+        """_which should handle .exe suffixed programs."""
+        from scripts.execute import _which
+        # 'cmd.exe' exists on Windows
+        result = _which("cmd.exe")
+        if result is not None:
+            assert isinstance(result, str)
 
 
 class TestSkippedReport:

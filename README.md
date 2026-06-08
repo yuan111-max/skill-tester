@@ -1,5 +1,4 @@
 # skill-tester
-<<<<<<< HEAD
 
 **4-Stage pipeline + 4D scoring for Claude Code skill evaluation.**
 
@@ -131,28 +130,37 @@ section_coverage, example_density) defined in `config/default.yaml`.
 ```
 skill-tester/
 ├── config/
-│   └── default.yaml          # All thresholds, weights, and rules
+│   └── default.yaml            # All thresholds, weights, and rules
 ├── scripts/
 │   ├── __init__.py
-│   ├── run_tests.py           # CLI entry point
-│   ├── config.py              # Config loader
-│   ├── analyze.py             # Stage 1
-│   ├── generate.py            # Stage 2
-│   ├── execute.py             # Stage 3
-│   └── evaluate.py            # Stage 4
+│   ├── run_tests.py             # CLI entry point
+│   ├── config.py                # Config loader
+│   ├── analyze.py               # Stage 1
+│   ├── generate.py              # Stage 2
+│   ├── execute.py               # Stage 3
+│   ├── evaluate.py              # Stage 4
+│   └── formatters.py            # Output: json, table, summary
 ├── tests/
 │   ├── __init__.py
-│   ├── conftest.py            # Shared fixtures
+│   ├── conftest.py              # Shared fixtures
 │   ├── test_analyze.py
 │   ├── test_generate.py
-│   └── test_evaluate.py
+│   ├── test_execute.py
+│   ├── test_evaluate.py
+│   ├── test_config.py
+│   ├── test_formatters.py
+│   ├── test_run_tests.py
+│   ├── test_integration.py
 │   └── fixtures/
 │       ├── good_skill/
-│       └── bad_skill/
+│       ├── bad_skill/
+│       └── full_skill/          # .py, .sh, .js + refs + assets
 ├── references/
-│   ├── scoring_guide.md       # Full rubric per dimension
-│   └── trigger_keywords.md    # Trigger phrase reference
-├── .github/workflows/test.yml # CI
+│   ├── scoring_guide.md
+│   └── trigger_keywords.md
+├── .github/workflows/test.yml   # CI (flake8 + mypy + pytest + self-test)
+├── .flake8                      # Linter config
+├── mypy.ini                     # Type checker config
 ├── requirements.txt
 ├── pyproject.toml
 └── README.md
@@ -208,6 +216,3 @@ python scripts/run_tests.py .
 ## License
 
 MIT
-=======
-技能多而繁杂，良莠不齐，skill-tester实现对一个技能的多维度评估并给出建议
->>>>>>> ba4a4f0396cb5f188abfc1a87f79f95e5969b299

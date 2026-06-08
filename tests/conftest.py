@@ -25,6 +25,12 @@ def bad_skill_dir() -> Path:
 
 
 @pytest.fixture
+def full_skill_dir() -> Path:
+    """Path to the comprehensive test skill with scripts, references, assets."""
+    return FIXTURES_DIR / "full_skill"
+
+
+@pytest.fixture
 def minimal_config() -> Dict[str, Any]:
     """A minimal configuration map for testing."""
     return {
@@ -49,7 +55,7 @@ def minimal_config() -> Dict[str, Any]:
             "check_name_format": True,
             "required_sections": ["when to use", "stage"],
             "min_examples": 2,
-            "script_extensions": [".py", ".sh"],
+            "script_extensions": [".py", ".sh", ".js"],
         },
         "execution": {
             "enabled": False,

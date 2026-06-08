@@ -41,7 +41,21 @@ def output_table(reports: List[Dict[str, Any]], dirs: List[Path], use_color: boo
         return
 
     headers = ["Dimension"] + [r.get("skill", f"skill-{i}") for i, r in enumerate(reports)]
-    col_width = max(len(h) for h in headers) + 2
+
+    # Compute column width from headers AND content values so that
+    # wide values (e.g. "7.90  POWERFUL") don't overflow.
+    all_widths = [len(h) for h in headers]
+    for r in reports:
+        ev = r.get("evaluation", {})
+        for name, score in ev.get("dimensions", {}).items():
+            all_widths.append(len(f"{score:.1f}"))
+        final = ev.get("final", "-")
+        tier = ev.get("tier", "")
+        if isinstance(final, (int, float)):
+            all_widths.append(len(f"{final:.2f}  {tier}"))
+        else:
+            all_widths.append(len(str(final)))
+    col_width = max(all_widths) + 2
     sep = "-" * col_width
 
     print(f"\n{'=' * (col_width * len(headers))}")

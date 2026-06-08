@@ -29,7 +29,12 @@ jobs:
       - name: Lint with flake8
         run: |
           pip install flake8
-          flake8 scripts/ tests/ --max-line-length=100 --extend-ignore=E203,W503
+          flake8 scripts/ tests/
+
+      - name: Type check with mypy
+        run: |
+          pip install mypy
+          mypy scripts/
 
       - name: Test with pytest
         run: |

@@ -94,13 +94,16 @@ def _generate_trigger_tests(
     tests: List[Dict[str, Any]] = []
 
     # 1. From trigger_info phrases (most reliable)
+    seen_prompts: set = set()
     for phrase in analysis.get("trigger_info", {}).get("trigger_phrases", []):
-        tests.append({
-            "type": "trigger",
-            "prompt": phrase,
-            "expected_trigger": True,
-            "source": "trigger_section",
-        })
+        if phrase not in seen_prompts:
+            seen_prompts.add(phrase)
+            tests.append({
+                "type": "trigger",
+                "prompt": phrase,
+                "expected_trigger": True,
+                "source": "trigger_section",
+            })
 
     # 2. From "When to Use" / usage sections
     for match in re.finditer(
@@ -187,7 +190,9 @@ def _generate_negative_tests(analysis: Dict[str, Any], content: str) -> List[Dic
 def _extract_domain_words(description: str) -> List[str]:
     """Extract domain-specific nouns from a description string."""
     # Simple heuristic: capitalised nouns and words after "for" / "in"
+    # Matches both TitleCase and ALL-CAPS acronyms
     words = re.findall(r"\b[A-Z][a-z]{2,}\b", description)
+    words += re.findall(r"\b[A-Z]{3,}\b", description)
     return words
 
 
