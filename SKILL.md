@@ -1,178 +1,158 @@
 ---
 name: skill-tester
-description: Tests and evaluates any Claude Code skill for structural validity, quality, and trigger accuracy. Implements the cc-plugin-eval 4-stage pipeline (Analysis → Generation → Execution → Evaluation) and the 4D scoring rubric (Documentation/Code/Completeness/Usability 25% each). Use before packaging or deploying any skill.
+description: Tests and evaluates any Claude Code skill for structural validity, content quality, bundle completeness, and trigger accuracy. Implements a 4-stage pipeline (Analysis → Generation → Execution → Evaluation) with configurable 4D scoring and tier classification.
 ---
 
 # Skill Tester
 
-Validate, test, and score Claude Code skills using a rigorous 4-stage evaluation pipeline.
+Validate, test, and score Claude Code skills using a rigorous 4-stage evaluation pipeline with configurable scoring dimensions and anti-pattern detection.
 
 ## When to Use
 
-- Before packaging a newly created or upgraded skill (`package_skill.py`)
-- After modifying any skill's SKILL.md or scripts
-- During skill development to catch structural issues early
-- To compare the quality of two competing skill implementations
-- Triggered automatically by `/skill-test <skill-name>` or when debugging a skill trigger failure
+- Before packaging a newly created or upgraded skill for deployment
+- After modifying any skill's SKILL.md, scripts, or bundle resources
+- During skill development to catch structural issues and anti-patterns early
+- To compare the quality of two or more competing skill implementations
+- As part of a CI pipeline to gate skill deployment on quality thresholds
+- Triggered by `/skill-tester <skill-dir>` when debugging or auditing a skill
 
-## 4-Stage Evaluation Pipeline
+## Stage 1: Analysis
 
-### Stage 1: Analysis
+**Goal**: Deep structural and content analysis of the skill.
 
-**Goal**: Understand skill structure and extract trigger conditions.
+1. Parse YAML frontmatter — validate `name`, `description`, angle brackets, length
+2. Recursively scan bundle directories — `scripts/`, `references/`, `assets/`
+3. Analyze content structure — section count, example density, line count, required sections
+4. Detect anti-patterns — `TODO`/`FIXME`/`XXX` placeholders, template artifacts, filler language, vague references
+5. Validate scripts — Python syntax check via `py_compile`, shebang check for shell scripts, docstring presence
 
-1. Read the skill's `SKILL.md` fully.
-2. Parse YAML frontmatter — extract `name`, `description`, and any `when_to_use` fields.
-3. Identify bundled resources:
-   ```
-   ls <skill-dir>/
-   # Expected: SKILL.md + optional scripts/, references/, assets/
-   ```
-4. Check for common structural issues:
-   - Missing closing `---` after frontmatter
-   - `description` field contains `>` or `<` characters (folded scalar bug)
-   - Empty or generic description (< 20 chars)
-   - Missing required frontmatter keys
+**Key checks:**
+- `name` must be lowercase-hyphenated (e.g. `my-skill`)
+- `description` must not contain `>` or `<` characters (folded-scalar bug)
+- `description` must be ≥ 20 characters
+- SKILL.md should have ≥ 2 sections and mention trigger conditions
+- No `TODO`/`FIXME`/`XXX` markers should remain in the body
 
-### Stage 2: Generation
+## Stage 2: Test Generation
 
-**Goal**: Generate test cases from the skill's own content.
+**Goal**: Automatically generate test cases from the skill's own content.
 
-1. **Trigger test cases**: Extract every "when to use" clause from SKILL.md. Convert each into a concrete prompt that should invoke the skill.
-2. **Coverage test cases**: Identify every distinct capability mentioned. Write one test per capability.
-3. **Edge cases**: Identify boundary conditions, error paths, and "do NOT do X" rules.
+1. **Trigger tests**: Extract every "When to Use" clause and trigger keyword match as a concrete prompt that *should* invoke the skill
+2. **Non-trigger tests**: Generate prompts that should *not* invoke the skill (negative testing)
+3. **Edge cases**: Extract "Do Not", "Avoid", "Limitations", "Warnings" sections as test prompts
+4. **Capabilities**: Extract section headings and action-oriented bullet points as declared capabilities
 
-Example generation from a skill with `submit_alpha` workflow:
+Tests are deduplicated and capped to `max_tests` (default 10), prioritised as: trigger > non-trigger > edge case.
 
-| Capability | Test Prompt |
-|-----------|------------|
-| IS PASS → submit | "Simulation IS just passed with Sharpe=1.8, should I submit?" |
-| IS FAIL → diagnose | "Simulation got LOW_SHARPE FAIL, what do I do?" |
-| Async wait | "I called submit_alpha and got success:true, how do I verify?" |
+## Stage 3: Execution
 
-### Stage 3: Execution
-
-**Goal**: Run each test case and collect outcomes.
+**Goal**: Run each test prompt through the `claude` CLI and score responses.
 
 For each test prompt:
-1. Execute in a fresh sub-agent with the skill loaded.
-2. Capture the full response.
-3. Score pass/fail per test case:
-   - **PASS**: Response correctly addressed the prompt using the skill's instructions
-   - **FAIL**: Response missed, contradicted, or ignored the skill's guidance
-   - **N/A**: Skill does not cover this scenario
+1. Execute in a subprocess via `claude --non-interactive --print <prompt>`
+2. Capture the full response and measure elapsed time
+3. Detect skill activation via heuristics (skill name mention, activation phrases, structured output indicators)
+4. Score PASS if activation status matches expected; FAIL otherwise
 
-### Stage 4: Evaluation
+Requires `--execute` flag or `execution.enabled: true` in config.
+Falls back gracefully with a SKIPPED report when the CLI is unavailable.
 
-**Goal**: Aggregate scores into the 4D rubric.
+## Stage 4: Evaluation
 
-## 4D Scoring Rubric
+**Goal**: Aggregate all analysis, test, and execution data into 4D scores and a deployment tier.
 
-| Dimension | Weight | What It Measures | Score Range |
-|-----------|--------|-----------------|-------------|
-| **Documentation** | 25% | SKILL.md clarity, completeness, examples, structure | 0–10 |
-| **Code/Scripts** | 25% | Bundled scripts correctness, error handling, determinism | 0–10 |
-| **Completeness** | 25% | All declared capabilities covered, no critical gaps | 0–10 |
-| **Usability** | 25% | Skill triggers correctly, instructions are actionable, edge cases handled | 0–10 |
+**4D Scoring Dimensions:**
 
-### Dimension Scoring Guide
+| Dimension | Weight | What It Measures |
+|-----------|--------|-----------------|
+| Documentation | 25% | SKILL.md clarity, structure, examples, trigger clarity |
+| Code | 25% | Script correctness, error handling, documentation |
+| Completeness | 25% | Capability coverage, edge case coverage, section completeness |
+| Usability | 25% | Trigger accuracy, instruction actionability, edge case handling |
 
-**Documentation (0–10):**
-- 9–10: SKILL.md has clear sections, concrete examples, decision trees, and explicit WHEN-to-use
-- 7–8: Well-structured with most key scenarios covered
-- 5–6: Functional but missing examples or ambiguous trigger conditions
-- <5: Generic template content, no real skill-specific guidance
+Each dimension is computed from weighted sub-scores defined in `config/default.yaml`. The final score (0–10) maps to a tier:
 
-**Code/Scripts (0–10):**
-- 9–10: Scripts are executable, handle errors, have docstrings, and are deterministic
-- 7–8: Functional scripts with minor issues
-- 5–6: Scripts exist but have bugs or unclear purpose
-- <5: No scripts or all scripts are broken
+| Score | Tier | Action |
+|-------|------|--------|
+| ≥ 8.5 | POWERFUL | Deploy immediately; set as benchmark |
+| ≥ 7.0 | STANDARD | Good to deploy; address minor gaps |
+| ≥ 5.0 | BASIC | Functional; needs improvement |
+| < 5.0 | REJECT | Major rewrites required |
 
-**Completeness (0–10):**
-- 9–10: Every declared capability has corresponding instructions; no dead-end scenarios
-- 7–8: >80% coverage; minor gaps in edge cases
-- 5–6: 50–80% coverage; some declared features have no implementation
-- <5: Less than half of declared capabilities are implemented
+## Configuration
 
-**Usability (0–10):**
-- 9–10: Skill triggers reliably on the right prompts; instructions are unambiguous
-- 7–8: Usually triggers correctly; some prompts need refinement
-- 5–6: Trigger conditions are vague; user often needs to invoke manually
-- <5: Skill rarely triggers on relevant prompts
+All thresholds, weights, and rules live in `config/default.yaml`. Customize via:
+1. `config/local.yaml` (auto-loaded, git-ignored)
+2. `--config path/to/custom.yaml` CLI flag
 
-### Final Score
+Configurable items: dimension weights, sub-score definitions, tier thresholds,
+anti-pattern patterns, script extensions, execution settings, output formatting.
 
-```
-final = (Documentation × 0.25) + (Code × 0.25) + (Completeness × 0.25) + (Usability × 0.25)
-```
+## Examples
 
-### Tier Classification
-
-| Final Score | Tier | Action |
-|-------------|------|--------|
-| ≥ 8.5 | **POWERFUL** | Deploy immediately; set as benchmark |
-| ≥ 7.0 | **STANDARD** | Good to deploy; address minor gaps |
-| ≥ 5.0 | **BASIC** | Functional but needs improvement |
-| < 5.0 | **REJECT** | Do not deploy; major rewrites needed |
-
-## Structural Validation Checklist
-
-Run before scoring:
-
-```
-[ ] YAML frontmatter closes correctly (--- after frontmatter)
-[ ] description field is single-line, no > or < characters
-[ ] name field is lowercase-with-hyphens
-[ ] SKILL.md has at least one real section beyond "Overview"
-[ ] All scripts are syntactically valid (python3 -m py_compile)
-[ ] references/ files exist only if SKILL.md references them
-[ ] assets/ files exist only if SKILL.md references them
-[ ] No TODO placeholders remain in SKILL.md body
-```
-
-## Quick Validate Script
-
-Use the skill-creator's built-in validator:
-
+### Basic structural analysis:
 ```bash
-python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py <skill-dir>/SKILL.md
+python scripts/run_tests.py ../my-skill
 ```
 
-Common validation failures:
-- `Description cannot contain angle brackets` → Convert folded scalar (`description: >`) to single-line `description: text here`
-- `Missing closing ---` → Add `---` after YAML frontmatter
-- `name must be lowercase` → Rename `My-Skill` → `my-skill`
-
-## Package Before Deployment
-
-After passing validation and scoring:
-
+### Full pipeline with live tests:
 ```bash
-python3 ~/.claude/skills/skill-creator/scripts/package_skill.py <skill-dir>
+python scripts/run_tests.py ../my-skill --execute
 ```
 
-Packaging validates automatically. Fix all validation errors before zipping.
+### Compare two skills:
+```bash
+python scripts/run_tests.py ../skill-a ../skill-b --output table
+```
 
-## Relationship to Other Skills
+### JSON output for CI:
+```bash
+python scripts/run_tests.py ../my-skill --output json
+```
 
-- **skill-creator**: skill-tester validates output from skill-creator. Always run after upgrading.
-- **brain-compound**: Produces new skills; skill-tester validates them before use.
-- **cc-plugin-eval** (GitHub: sjnims/cc-plugin-eval): The conceptual foundation — 4-stage pipeline + LLM judgment.
-- **skill-tester** (GitHub: alirezarezvani/claude-skills): The scoring framework — 4D rubric + tier system.
+### Custom config:
+```bash
+python scripts/run_tests.py ../my-skill --config ./strict.yaml
+```
+
+## Limitations
+
+- Stage 3 execution requires the `claude` CLI to be installed in PATH
+- Python syntax validation only works for `.py` files (not shell/JS/TS)
+- Non-trigger test prompts are generated heuristically and may not match real-world usage
+- Scoring is structural-quality focused and does not measure skill effectiveness on real tasks
+- Anti-pattern detection uses regex patterns and may produce false positives
+
+## Do Not
+
+- Do not run `--execute` without reviewing the test prompts first (each execution costs API tokens)
+- Do not rely solely on the final score — review individual dimension details and issues
+- Avoid modifying `config/default.yaml` directly — use `config/local.yaml` or `--config` instead
 
 ## Bundle Resources
 
 ### scripts/
-
-The main test execution script goes here:
-
-- `run_tests.py` — 4-stage pipeline orchestrator. Accepts skill path and outputs JSON report.
+- `run_tests.py` — CLI entry point and pipeline orchestrator
+- `config.py` — Configuration loader (default.yaml → local.yaml → CLI overrides)
+- `analyze.py` — Stage 1: structural and content analysis
+- `generate.py` — Stage 2: automatic test case generation
+- `execute.py` — Stage 3: subprocess-based test execution via Claude CLI
+- `evaluate.py` — Stage 4: multi-dimensional scoring and tier classification
+- `__init__.py` — Package marker
 
 ### references/
+- `scoring_guide.md` — Full rubric per dimension with sub-score definitions
+- `trigger_keywords.md` — Common skill trigger phrases for test generation
 
-- `scoring_guide.md` — Full rubric with examples of each score level (0–10) per dimension.
-- `trigger_keywords.md` — Common skill trigger phrases for generating test cases.
+### config/
+- `default.yaml` — All scoring weights, analysis thresholds, anti-pattern rules, and execution settings
+
+## Relationship to Other Skills
+
+- **skill-creator**: skill-tester validates and scores skills produced by skill-creator
+- **cc-plugin-eval** (GitHub: sjnims/cc-plugin-eval): Conceptual foundation — 4-stage pipeline + LLM judgment
+- **claude-skills** (GitHub: alirezarezvani/claude-skills): Scoring framework — 4D rubric + tier system
 
 ---
-*Built on cc-plugin-eval (sjnims) + skill-tester (alirezarezvani) frameworks*
+
+*Built on cc-plugin-eval (sjnims) + claude-skills (alirezarezvani) frameworks, with evaluation methodology from Anthropic skill-creator (Eval/Benchmark modes)*

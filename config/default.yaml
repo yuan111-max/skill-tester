@@ -1,0 +1,145 @@
+# =============================================================================
+# skill-tester default configuration
+# =============================================================================
+# Override any value by creating a custom YAML and passing --config <path>
+# or by placing config/local.yaml alongside this file (auto-loaded if exists).
+
+scoring:
+  # ── Dimension definitions ──────────────────────────────────────────────
+  # Each dimension has a weight (must sum to 1.0) and optional sub-scores
+  # that are averaged to produce the dimension score.
+  dimensions:
+    Documentation:
+      weight: 0.25
+      description: "SKILL.md clarity, structure, examples, and trigger clarity"
+      sub_scores:
+        - name: frontmatter_validity
+          weight: 0.15
+        - name: section_coverage
+          weight: 0.25
+        - name: example_density
+          weight: 0.20
+        - name: specificity_and_clarity
+          weight: 0.25
+        - name: trigger_clarity
+          weight: 0.15
+
+    Code:
+      weight: 0.25
+      description: "Bundled scripts correctness, error handling, determinism"
+      sub_scores:
+        - name: script_presence
+          weight: 0.10
+        - name: syntactic_validity
+          weight: 0.35
+        - name: error_handling
+          weight: 0.30
+        - name: script_documentation
+          weight: 0.25
+
+    Completeness:
+      weight: 0.25
+      description: "All declared capabilities covered, no critical gaps"
+      sub_scores:
+        - name: capability_coverage
+          weight: 0.40
+        - name: edge_case_coverage
+          weight: 0.30
+        - name: section_completeness
+          weight: 0.30
+
+    Usability:
+      weight: 0.25
+      description: "Skill triggers correctly, instructions actionable"
+      sub_scores:
+        - name: trigger_accuracy
+          weight: 0.30
+        - name: instruction_actionability
+          weight: 0.30
+        - name: edge_case_handling
+          weight: 0.20
+        - name: progressive_disclosure
+          weight: 0.20
+
+  # ── Tier thresholds ───────────────────────────────────────────────────
+  tiers:
+    POWERFUL:
+      min: 8.5
+      action: "Deploy immediately; set as benchmark"
+    STANDARD:
+      min: 7.0
+      action: "Good to deploy; address minor gaps"
+    BASIC:
+      min: 5.0
+      action: "Functional; needs improvement"
+    REJECT:
+      min: 0.0
+      action: "Major rewrites required"
+
+# ── Analysis settings ────────────────────────────────────────────────────
+analysis:
+  min_description_length: 20
+  max_section_depth: 3
+  check_angle_brackets: true
+  check_todo_placeholders: true
+  check_name_format: true
+  # Minimum distinct sections a well-formed SKILL.md should have
+  required_sections:
+    - "when to use"
+    - "stage"
+  # Minimum number of concrete examples expected
+  min_examples: 2
+  # Bundled resource extensions to check
+  script_extensions:
+    - ".py"
+    - ".sh"
+    - ".js"
+    - ".ts"
+    - ".rb"
+    - ".go"
+
+# ── Execution settings (Stage 3) ─────────────────────────────────────────
+execution:
+  # Requires --execute flag or execute.enabled: true
+  enabled: false
+  # CLI command for running test prompts
+  claude_command: "claude"
+  # Timeout per test in seconds
+  timeout_seconds: 180
+  # Max test prompts to execute (0 = unlimited)
+  max_tests: 10
+  # Model temperature (0.0 = deterministic)
+  temperature: 0.0
+  # Additional CLI args for the claude command
+  claude_args:
+    - "--non-interactive"
+    - "--print"
+
+# ── Anti-pattern detection ──────────────────────────────────────────────
+anti_patterns:
+  - pattern: "TODO|FIXME|XXX|HACK|WORKAROUND"
+    type: placeholder
+    severity: high
+    message: "Placeholder or incomplete marker found — replace before deploying"
+  - pattern: "your\\s+(skill|needs|specific|use.case|scenario)\\b"
+    type: template_artifact
+    severity: medium
+    message: "Generic template language — replace with concrete domain terms"
+  - pattern: "\\b(very|extremely|highly)\\s+(simple|easy|basic|straightforward)\\b"
+    type: filler
+    severity: low
+    message: "Subjective filler language — prefer objective descriptions"
+  - pattern: "Insert\\s+(your|the)\\s+.*here"
+    type: placeholder
+    severity: high
+    message: "Explicit insertion placeholder — complete this section"
+  - pattern: "\\bclick\\s+(here|below)\\b|\\bsee\\s+above\\b"
+    type: vague_reference
+    severity: low
+    message: "Vague directional reference — use explicit section links"
+
+# ── Output formatting ────────────────────────────────────────────────────
+output:
+  default_format: "summary"  # summary | json | table
+  color_enabled: true
+  max_description_preview: 80

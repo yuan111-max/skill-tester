@@ -1,286 +1,240 @@
 #!/usr/bin/env python3
 """
-4-Stage Skill Evaluation Pipeline
-Based on cc-plugin-eval (sjnims) + skill-tester (alirezarezvani)
+skill-tester — 4-Stage pipeline + 4D scoring for Claude Code skill evaluation.
 
-Usage:
-    python3 run_tests.py <skill-dir> [--output json|summary]
+Usage
+-----
+    python scripts/run_tests.py <skill-dir> [options]
+
+Examples
+--------
+    # Basic structural analysis and scoring
+    python scripts/run_tests.py ../my-skill
+
+    # Full pipeline with real test execution
+    python scripts/run_tests.py ../my-skill --execute
+
+    # JSON output for programmatic consumption
+    python scripts/run_tests.py ../my-skill --output json
+
+    # Compare two skills side by side
+    python scripts/run_tests.py ../skill-a ../skill-b --output table
+
+    # Custom configuration
+    python scripts/run_tests.py ../my-skill --config ./my-config.yaml
 """
 
-import json
-import os
-import re
+from __future__ import annotations
+
 import sys
-import argparse
-import subprocess
+import time
 from pathlib import Path
+from typing import Any, Dict, List
 
-try:
-    import yaml
-    HAS_YAML = True
-except ImportError:
-    HAS_YAML = False
+# Add parent dir so ``scripts`` is importable when run as ``python scripts/run_tests.py``
+_THIS_DIR = Path(__file__).resolve().parent
+if str(_THIS_DIR.parent) not in sys.path:
+    sys.path.insert(0, str(_THIS_DIR.parent))
 
-# ─── Stage 1: Analysis ────────────────────────────────────────────────────────
-
-def analyze_skill(skill_dir: Path) -> dict:
-    """Parse SKILL.md and extract skill metadata."""
-    skill_md = skill_dir / "SKILL.md"
-    if not skill_md.exists():
-        return {"error": f"SKILL.md not found in {skill_dir}"}
-
-    content = skill_md.read_text()
-
-    # Parse YAML frontmatter
-    fm_match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
-    if not fm_match:
-        return {"error": "Missing YAML frontmatter delimiter"}
-
-    frontmatter = fm_match.group(1)
-    fm = {}
-    if HAS_YAML:
-        try:
-            fm = yaml.safe_load(frontmatter) or {}
-        except Exception:
-            pass  # fall through to regex
-    if not fm:
-        # Fallback regex parser — only used if PyYAML unavailable
-        for line in frontmatter.splitlines():
-            if ':' in line:
-                key, _, val = line.partition(':')
-                fm[key.strip()] = val.strip().strip('"').strip("'")
-
-    # Structural checks
-    issues = []
-    if 'name' not in fm:
-        issues.append("Missing 'name' in frontmatter")
-    if 'description' not in fm:
-        issues.append("Missing 'description' in frontmatter")
-    if fm.get('name', '').lower() != fm.get('name', ''):
-        issues.append("'name' should be lowercase")
-    if '<' in fm.get('description', '') or '>' in fm.get('description', ''):
-        issues.append("'description' contains angle brackets (likely folded scalar bug)")
-    if len(fm.get('description', '')) < 20:
-        issues.append("'description' is too short (< 20 chars)")
-
-    # Check bundle structure — exclude hidden files (fixes macOS .DS_Store false positive)
-    def _has_visible_entries(path: Path) -> bool:
-        return path.exists() and any(f.is_file() and not f.name.startswith('.') for f in path.iterdir())
-
-    has_scripts    = _has_visible_entries(skill_dir / "scripts")
-    has_references = _has_visible_entries(skill_dir / "references")
-    has_assets     = _has_visible_entries(skill_dir / "assets")
-
-    return {
-        "name": fm.get("name", "unknown"),
-        "description": fm.get("description", ""),
-        "issues": issues,
-        "bundle": {
-            "scripts": has_scripts,
-            "references": has_references,
-            "assets": has_assets,
-        },
-        "has_todo": "[TODO" in content,
-    }
+from scripts.config import load_config
+from scripts.analyze import analyze_skill
+from scripts.generate import generate_tests
+from scripts.execute import execute_tests
+from scripts.evaluate import evaluate
+from scripts.formatters import (
+    color_tier,
+    output_json,
+    output_summary,
+    output_table,
+    print_stage,
+    stdout_is_tty,
+)
 
 
-# ─── Stage 2: Generation ──────────────────────────────────────────────────────
+# ── CLI ──────────────────────────────────────────────────────────────────
 
-TRIGGER_KEYWORDS = [
-    "when to use", "use when", "trigger", "invoked", "activated",
-    "apply when", "run when", "execute when", "call this skill",
-]
 
-def generate_trigger_tests(skill_dir: Path) -> list:
-    """Extract trigger conditions from SKILL.md and generate test prompts."""
-    skill_md = skill_dir / "SKILL.md"
-    if not skill_md.exists():
-        return []
+def build_parser():
+    import argparse
 
-    content = skill_md.read_text()
-    tests = []
-
-    # Extract "When to Use" sections
-    when_sections = re.findall(
-        r"(?:##\s+(?:When to Use|Usage|Triggers?).*?\n)(.*?)(?=\n##\s|\Z)",
-        content, re.IGNORECASE | re.DOTALL
+    parser = argparse.ArgumentParser(
+        description="4-Stage Skill Evaluation Pipeline for Claude Code skills. "
+                    "Supports --execute (live CLI tests), --config (custom YAML), "
+                    "--output json|table|summary, and multi-skill comparison.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
     )
+    parser.add_argument(
+        "skill_dirs",
+        type=Path,
+        nargs="+",
+        help="Path(s) to skill directory (one or more for comparison)",
+    )
+    parser.add_argument(
+        "--output", "-o",
+        choices=["summary", "json", "table"],
+        default=None,
+        help="Output format (default: summary; table for multi-skill)",
+    )
+    parser.add_argument(
+        "--execute", "-e",
+        action="store_true",
+        default=False,
+        help="Enable real test execution via Claude CLI (disabled by default)",
+    )
+    parser.add_argument(
+        "--config", "-c",
+        type=Path,
+        default=None,
+        help="Path to custom YAML configuration file",
+    )
+    parser.add_argument(
+        "--quiet", "-q",
+        action="store_true",
+        default=False,
+        help="Suppress stage progress output",
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        default=False,
+        help="Disable ANSI colour in output",
+    )
+    return parser
 
-    for section in when_sections:
-        # Find bullet points and code blocks
-        bullets = re.findall(r"^\s*[-*]\s+(.+)$", section, re.MULTILINE)
-        for b in bullets:
-            b = b.strip().rstrip('.')
-            if len(b) > 10:
-                tests.append({
-                    "type": "trigger",
-                    "prompt": b,
-                    "expected_trigger": True,
-                })
-
-    # Find trigger keywords in context
-    for match in re.finditer(rf"( {'|'.join(TRIGGER_KEYWORDS)})[:\s]+(.*?)(?:\n\n|\n##)", content, re.IGNORECASE | re.DOTALL):
-        phrase = match.group(2).strip()
-        if len(phrase) > 10:
-            tests.append({
-                "type": "trigger",
-                "prompt": phrase,
-                "expected_trigger": True,
-            })
-
-    return tests[:10]  # Cap at 10 tests
-
-
-# ─── Stage 3: Execution (stub) ────────────────────────────────────────────────
-
-def execute_tests(tests: list) -> list:
-    """
-    Execute each test. Stub version — full execution requires a sub-agent.
-    Returns a list of {test, status, note} dicts.
-    """
-    results = []
-    for t in tests:
-        results.append({
-            **t,
-            "status": "SKIPPED",
-            "note": "Execution requires a sub-agent. Run with --execute to enable.",
-        })
-    return results
-
-
-# ─── Stage 4: Evaluation ───────────────────────────────────────────────────────
-
-DIMENSION_WEIGHTS = {
-    "Documentation": 0.25,
-    "Code": 0.25,
-    "Completeness": 0.25,
-    "Usability": 0.25,
-}
-
-def score_dimension(value: float) -> float:
-    """Convert raw 0-10 score to weighted contribution."""
-    return value / 10.0
-
-def evaluate(analysis: dict, trigger_tests: list) -> dict:
-    """Compute 4D scores and final tier."""
-    scores = {}
-
-    # Documentation: based on structural issues and description quality
-    doc_issues = len(analysis.get("issues", []))
-    has_todo = analysis.get("has_todo", False)
-    desc_len = len(analysis.get("description", ""))
-    scores["Documentation"] = max(0, 10 - doc_issues * 2 - (3 if has_todo else 0) - (2 if desc_len < 50 else 0))
-
-    # Code: based on bundle structure
-    bundle = analysis.get("bundle", {})
-    code_score = 5  # baseline
-    if bundle.get("scripts"):
-        code_score += 3
-    if bundle.get("references"):
-        code_score += 1
-    if bundle.get("assets"):
-        code_score += 1
-    scores["Code"] = min(10, code_score)
-
-    # Completeness: based on trigger test coverage
-    n_tests = len(trigger_tests)
-    if n_tests >= 8:
-        scores["Completeness"] = 9
-    elif n_tests >= 5:
-        scores["Completeness"] = 7
-    elif n_tests >= 2:
-        scores["Completeness"] = 5
-    else:
-        scores["Completeness"] = 3
-
-    # Usability: proxy via structural issues
-    scores["Usability"] = max(0, 10 - doc_issues * 3 - (2 if has_todo else 0))
-
-    # Final
-    final = sum(score_dimension(v) * DIMENSION_WEIGHTS[k] for k, v in scores.items())
-
-    # Tier
-    if final >= 0.85:
-        tier = "POWERFUL"
-    elif final >= 0.70:
-        tier = "STANDARD"
-    elif final >= 0.50:
-        tier = "BASIC"
-    else:
-        tier = "REJECT"
-
-    return {
-        "dimensions": scores,
-        "final": round(final, 3),
-        "tier": tier,
-    }
-
-
-# ─── CLI ──────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="4-Stage Skill Evaluation")
-    parser.add_argument("skill_dir", type=Path, help="Path to skill directory")
-    parser.add_argument("--output", choices=["json", "summary"], default="summary")
+    parser = build_parser()
     args = parser.parse_args()
 
-    skill_dir = args.skill_dir.expanduser().resolve()
-    if not skill_dir.exists():
-        print(f"Error: {skill_dir} does not exist")
-        sys.exit(1)
+    # Load configuration
+    config = load_config(args.config)
 
-    # Stage 1: Analysis
-    analysis = analyze_skill(skill_dir)
+    # Resolve output format
+    output_format = args.output
+    if output_format is None:
+        output_format = "table" if len(args.skill_dirs) > 1 else "summary"
+
+    # Resolve colour
+    use_color = not args.no_color and stdout_is_tty()
+
+    # Process each skill
+    reports: List[Dict[str, Any]] = []
+    exit_code = 0
+
+    for skill_dir in args.skill_dirs:
+        resolved = skill_dir.expanduser().resolve()
+        if not resolved.exists():
+            print(f"Error: {resolved} does not exist", file=sys.stderr)
+            exit_code = 1
+            continue
+
+        if not args.quiet:
+            print_stage(f"Analyzing: {resolved.name}", 1, use_color)
+
+        report = _run_pipeline(resolved, config, args.execute, args.quiet, use_color)
+        reports.append(report)
+
+        if report.get("error"):
+            print(f"  [!] {report['error']}", file=sys.stderr)
+
+    # Output
+    if output_format == "json":
+        output_json(reports, args.skill_dirs)
+    elif output_format == "table":
+        output_table(reports, args.skill_dirs, use_color)
+    else:
+        for i, report in enumerate(reports):
+            output_summary(report, args.skill_dirs[i], use_color)
+            if i < len(reports) - 1:
+                print()  # blank line between skills
+
+    sys.exit(exit_code)
+
+
+# ── Pipeline ─────────────────────────────────────────────────────────────
+
+
+def _run_pipeline(
+    skill_dir: Path,
+    config: Dict[str, Any],
+    execute_enabled: bool,
+    quiet: bool,
+    use_color: bool,
+) -> Dict[str, Any]:
+    """Run the full 4-stage pipeline for one skill."""
+    start = time.monotonic()
+
+    # Read SKILL.md body once (shared across stages)
+    skill_md_path = skill_dir / "SKILL.md"
+    skill_body = ""
+    if skill_md_path.exists():
+        skill_body = skill_md_path.read_text(encoding="utf-8")
+
+    # ── Stage 1: Analysis ──────────────────────────────────────────────
+    if not quiet:
+        print_stage("Stage 1: Analysis", 2, use_color)
+
+    analysis = analyze_skill(skill_dir, config, skill_body)
     if "error" in analysis:
-        print(f"Error: {analysis['error']}")
-        sys.exit(1)
+        elapsed = time.monotonic() - start
+        return {"error": analysis["error"], "elapsed": round(elapsed, 2)}
+    analysis["_body"] = skill_body
 
-    # Stage 2: Generation
-    trigger_tests = generate_trigger_tests(skill_dir)
+    if not quiet:
+        issues = analysis.get("issues", [])
+        print(f"    Frontmatter: name='{analysis['name']}', "
+              f"issues={len(issues)}")
 
-    # Stage 3: Execution (stub)
-    results = execute_tests(trigger_tests)
+    # ── Stage 2: Generation ────────────────────────────────────────────
+    if not quiet:
+        print_stage("Stage 2: Test Generation", 2, use_color)
 
-    # Stage 4: Evaluation
-    evaluation = evaluate(analysis, trigger_tests)
+    test_data = generate_tests(skill_dir, analysis, config, skill_body)
 
-    report = {
-        "skill": analysis["name"],
-        "description": analysis["description"],
-        "issues": analysis["issues"],
-        "bundle": analysis["bundle"],
-        "trigger_tests_generated": len(trigger_tests),
-        "tests": results,
+    if not quiet:
+        trig = len(test_data.get("trigger_tests", []))
+        nontrig = len(test_data.get("non_trigger_tests", []))
+        edge = len(test_data.get("edge_cases", []))
+        print(f"    {trig} trigger + {nontrig} non-trigger + {edge} edge = "
+              f"{test_data['total_generated']} total tests")
+
+    # ── Stage 3: Execution ─────────────────────────────────────────────
+    if not quiet:
+        print_stage("Stage 3: Execution", 2, use_color)
+
+    execution_result = execute_tests(test_data, analysis, config, force=execute_enabled)
+
+    if not quiet:
+        summary = execution_result.get("summary", {})
+        if execution_result.get("executed"):
+            print(f"    {summary.get('passed', 0)}/{summary.get('total', 0)} passed "
+                  f"({summary.get('failed', 0)} failed, {summary.get('error', 0)} errors)")
+        else:
+            print(f"    SKIPPED - {execution_result.get('skip_reason', 'use --execute to enable')}")
+
+    # ── Stage 4: Evaluation ────────────────────────────────────────────
+    if not quiet:
+        print_stage("Stage 4: Evaluation", 2, use_color)
+
+    evaluation = evaluate(analysis, test_data, execution_result, config)
+
+    elapsed = time.monotonic() - start
+
+    return {
+        "skill": analysis.get("name", "unknown"),
+        "description": analysis.get("description", ""),
+        "issues": analysis.get("issues", []),
+        "bundle": analysis.get("bundle", {}),
+        "anti_patterns": analysis.get("anti_patterns", []),
+        "tests": test_data,
+        "execution": execution_result,
         "evaluation": evaluation,
+        "elapsed": round(elapsed, 2),
     }
 
-    if args.output == "json":
-        print(json.dumps(report, indent=2))
-    else:
-        print_summary(report)
 
-def print_summary(report: dict):
-    ev = report["evaluation"]
-    dims = ev["dimensions"]
-    print(f"\n{'='*60}")
-    print(f"Skill Tester Report: {report['skill']}")
-    print(f"{'='*60}")
-    print(f"Description: {report['description'][:80]}")
-    print(f"\nStructural Issues ({len(report['issues'])}):")
-    for issue in report["issues"]:
-        print(f"  ⚠️  {issue}")
-    print(f"\nBundle: scripts={report['bundle']['scripts']}  "
-          f"refs={report['bundle']['references']}  "
-          f"assets={report['bundle']['assets']}")
-    print(f"\n4D Scores:")
-    for dim, score in dims.items():
-        bar = "█" * int(score) + "░" * (10 - int(score))
-        print(f"  {dim:<16} {bar} {score:.1f}/10")
-    print(f"\n{'─'*40}")
-    print(f"  Final Score: {ev['final']:.3f}  →  {ev['tier']}")
-    print(f"  Trigger tests generated: {report['trigger_tests_generated']}")
-    print(f"{'='*60}\n")
-
+# ── Entry ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     main()
