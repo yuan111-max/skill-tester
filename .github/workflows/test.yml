@@ -49,31 +49,8 @@ jobs:
           mypy scripts/
 
       - name: Test with pytest
-        continue-on-error: true
         run: |
-          pytest tests/ -v --tb=long > pytest_raw.txt 2>&1; echo "EXIT_CODE=$?" >> pytest_raw.txt
-        env:
-          PYTHONIOENCODING: utf-8
-
-      - name: Upload pytest output as artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: pytest-output-${{ matrix.python-version }}
-          path: pytest_raw.txt
-          retention-days: 1
-
-      - name: Check test result
-        if: always()
-        run: |
-          tail -1 pytest_raw.txt
-          rc=$(tail -1 pytest_raw.txt | grep -oP 'EXIT_CODE=\K\d+' || echo 1)
-          if [ "$rc" != "0" ]; then
-            echo "Tests failed (exit code $rc)"
-            cat pytest_raw.txt | grep -E "FAILED|ERROR|assert|Error" || true
-            exit 1
-          fi
-          echo "All tests passed!"
+          pytest tests/ -v --tb=short --cov=scripts --cov-report=term-missing --cov-fail-under=70
 
       - name: Validate self-test
         run: |
