@@ -13,8 +13,7 @@ from typing import Any, Dict, List
 from scripts.utils import strip_frontmatter
 
 
-# ── Public API ───────────────────────────────────────────────────────────
-
+# ── Public API ──────────────────────────────────────────────────────────────
 
 def generate_tests(
     skill_dir: Path,
@@ -80,8 +79,7 @@ def generate_tests(
     }
 
 
-# ── Trigger tests ────────────────────────────────────────────────────────
-
+# ── Trigger tests ────────────────────────────────────────────────────────────
 
 _TRIGGER_KEYWORDS = [
     "when to use", "use when", "trigger", "invoked", "activated",
@@ -111,7 +109,10 @@ def _is_quality_prompt(phrase: str) -> bool:
     if re.search(r"[{}\[\]()]|->|=>|``", phrase):
         return False
     # Fragmentary starts (lowercase connector words)
-    if re.match(r"^(and|or|the|to |a |an |in |on |at |for |of |with |is |are )", phrase, re.IGNORECASE):
+    fragmentary_starts = (
+        r"^(and|or|the|to |a |an |in |on |at |for |of |with |is |are )"
+    )
+    if re.match(fragmentary_starts, phrase, re.IGNORECASE):
         return False
     # Fragmentary ends (trailing... or incomplete)
     if re.search(r"[.>]\.\.\.$", phrase):
@@ -236,8 +237,7 @@ def _extract_domain_words(description: str) -> List[str]:
     return words
 
 
-# ── Capabilities extraction ──────────────────────────────────────────────
-
+# ── Capabilities extraction ──────────────────────────────────────────────────
 
 def _extract_capabilities(analysis: Dict[str, Any], content: str) -> List[Dict[str, str]]:
     """Extract declared capabilities from section headings and bullet points."""
@@ -274,8 +274,7 @@ def _extract_capabilities(analysis: Dict[str, Any], content: str) -> List[Dict[s
     return capabilities
 
 
-# ── Edge cases ───────────────────────────────────────────────────────────
-
+# ── Edge cases ──────────────────────────────────────────────────────────────
 
 def _generate_edge_cases(content: str, analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Generate edge-case and error-path test prompts."""
