@@ -48,9 +48,9 @@ Measures quality of bundled scripts — correctness, error handling, determinism
 | Sub-score | Weight | Calculation |
 |-----------|--------|-------------|
 | script_presence | 10% | 10 if ≥3 scripts; 7 if ≥1; 2 if none |
-| syntactic_validity | 35% | (valid_count / total_count) × 10. 10 if no scripts |
-| error_handling | 30% | 5 baseline + 1 per script with try/except. Max 10 |
-| script_documentation | 25% | (scripts_with_docstring_or_shebang / total) × 10. 10 if no scripts |
+| syntactic_validity | 35% | (valid_count / total_count) × 10. 0 if no scripts |
+| error_handling | 30% | 2 baseline + (ratio with try/except) × 8. 0 if no scripts |
+| script_documentation | 25% | (scripts_with_docstring_or_shebang / total) × 10. 0 if no scripts |
 
 ### Checklist
 - [ ] `python3 -m py_compile` passes for all `.py` scripts

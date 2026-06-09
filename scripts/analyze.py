@@ -65,7 +65,7 @@ def analyze_skill(skill_dir: Path, config: Dict[str, Any], content: str = "") ->
         "trigger_info": trigger_info,
         "scripts": script_analysis,
         "issues": list(dict.fromkeys(all_issues)),  # deduplicate, preserve order
-        "has_todo": bool(re.search(r"TODO|FIXME|XXX|HACK", strip_frontmatter(content))),
+        "has_todo": bool(re.search(r"TODO|FIXME|XXX|HACK", _strip_code_blocks(strip_frontmatter(content)))),
     }
 
 
