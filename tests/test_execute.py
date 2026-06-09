@@ -253,13 +253,13 @@ class TestResolveClaude:
         """On Windows, also try .cmd and .exe variants."""
         # Mock _which to fail on first call (claude), succeed on second (claude.cmd)
         call_count = [0]
-        
+
         def mock_which(cmd):
             call_count[0] += 1
             if call_count[0] == 2:  # Second call
                 return "claude.cmd"
             return None
-        
+
         with patch("scripts.execute._which", side_effect=mock_which):
             result = _resolve_claude("claude")
             # Should find claude.cmd
