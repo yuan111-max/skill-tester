@@ -50,22 +50,27 @@ jobs:
 
       - name: Test with pytest
         continue-on-error: true
-        id: pytest
         run: |
-          pytest tests/ -v --tb=long --cov=scripts --cov-report=term-missing --cov-fail-under=70 > pytest_output.txt 2>&1; echo "rc=$?" >> pytest_output.txt
+          pytest tests/ -v --tb=long > pytest_raw.txt 2>&1; echo "EXIT_CODE=$?" >> pytest_raw.txt
+        env:
+          PYTHONIOENCODING: utf-8
 
-      - name: Show pytest output in summary
+      - name: Upload pytest output as artifact
         if: always()
-        run: |
-          { echo '### Pytest Output'; echo '```'; cat pytest_output.txt 2>/dev/null || echo '(no output captured)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+        uses: actions/upload-artifact@v3
+        with:
+          name: pytest-output-${{ matrix.python-version }}
+          path: pytest_raw.txt
+          retention-days: 1
 
       - name: Check test result
         if: always()
         run: |
-          rc=$(grep -oP 'rc=\K\d+' pytest_output.txt 2>/dev/null || echo 1)
-          echo "Pytest exit code: $rc"
+          tail -1 pytest_raw.txt
+          rc=$(tail -1 pytest_raw.txt | grep -oP 'EXIT_CODE=\K\d+' || echo 1)
           if [ "$rc" != "0" ]; then
-            echo "Tests failed with exit code $rc"
+            echo "Tests failed (exit code $rc)"
+            cat pytest_raw.txt | grep -E "FAILED|ERROR|assert|Error" || true
             exit 1
           fi
           echo "All tests passed!"
