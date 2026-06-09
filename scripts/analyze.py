@@ -9,10 +9,19 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-try:
-    import yaml
-except ImportError:
-    yaml = None
+import yaml
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+
+def _strip_frontmatter(content: str) -> str:
+    """Return *content* with YAML frontmatter (--- ... ---) removed.
+
+    Returns the raw content unchanged if no frontmatter delimiters are found.
+    """
+    m = re.match(r"^---\n.*?\n(?:---|\.\.\.)\n(.*)", content, re.DOTALL)
+    return m.group(1) if m else content
 
 
 # ── Public API ───────────────────────────────────────────────────────────
@@ -66,7 +75,7 @@ def analyze_skill(skill_dir: Path, config: Dict[str, Any], content: str = "") ->
         "trigger_info": trigger_info,
         "scripts": script_analysis,
         "issues": list(dict.fromkeys(all_issues)),  # deduplicate, preserve order
-        "has_todo": bool(re.search(r"\[TODO\b|FIXME|XXX", content)),
+        "has_todo": bool(re.search(r"TODO|FIXME|XXX|HACK", _strip_frontmatter(content))),
     }
 
 
@@ -84,13 +93,10 @@ def _parse_frontmatter(content: str, config: Dict[str, Any]) -> Tuple[Dict[str, 
 
     raw = fm_match.group(1)
 
-    if yaml is not None:
-        try:
-            fm = yaml.safe_load(raw) or {}
-        except yaml.YAMLError as exc:
-            issues.append(f"YAML parse error: {exc}")
-    else:
-        issues.append("PyYAML not installed — frontmatter parsing degraded")
+    try:
+        fm = yaml.safe_load(raw) or {}
+    except yaml.YAMLError as exc:
+        issues.append(f"YAML parse error: {exc}")
 
     analysis_cfg = config.get("analysis", {})
 
@@ -211,11 +217,7 @@ def _check_anti_patterns(content: str, config: Dict[str, Any]) -> List[Dict[str,
     patterns = config.get("anti_patterns", [])
     matches: List[Dict[str, Any]] = []
 
-    # Exclude YAML frontmatter from anti-pattern scan
-    body_match = re.match(
-        r"^---\n.*?\n(?:---|\.\.\.)\n(.*)", content, re.DOTALL
-    )
-    body = body_match.group(1) if body_match else content
+    body = _strip_frontmatter(content)
 
     for rule in patterns:
         try:

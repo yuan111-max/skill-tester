@@ -221,7 +221,7 @@ def _score_code(
     if total_count > 0:
         validity = (valid_count / total_count) * 10
     else:
-        validity = 10  # No scripts = no syntax errors = N/A treated as full score
+        validity = 0  # No scripts = no code quality to measure
 
     # 3. Error handling proxy (0-10)
     # Proportional to the ratio of scripts with try/except, with a baseline
@@ -231,14 +231,14 @@ def _score_code(
         eh_ratio = eh_count / total_count
         eh_score = 2 + eh_ratio * 8  # baseline 2 + proportional 0-8
     else:
-        eh_score = 10  # No scripts = N/A
+        eh_score = 0  # No scripts = no code quality to measure
 
     # 4. Script documentation (0-10)
     if total_count > 0:
         doc_count = sum(1 for r in script_list if r.get("has_docstring") or r.get("has_shebang"))
         doc_score = (doc_count / total_count) * 10
     else:
-        doc_score = 10
+        doc_score = 0  # No scripts = no code quality to measure
 
     subs = {
         "script_presence": round(presence, 1),
@@ -419,6 +419,9 @@ def _sub_weights(config: Dict[str, Any], dim_name: str, subs: Dict[str, Any]) ->
     return {k: 1.0 / len(subs) for k in subs}
 
 
+_body_missing_warned: bool = False
+
+
 def _read_skill_body(analysis: Dict[str, Any]) -> str:
     """Read SKILL.md body stashed by the pipeline in analysis['_body'].
 
@@ -430,14 +433,12 @@ def _read_skill_body(analysis: Dict[str, Any]) -> str:
     """
     global _body_missing_warned
     body = analysis.get("_body")
-    if not body and not _body_missing_warned:
-        _body_missing_warned = True
-        warnings.warn(
-            "analysis['_body'] is missing — Usability scoring will be degraded. "
-            "Call evaluate() via the pipeline (run_tests._run_pipeline) or set "
-            "analysis['_body'] = skill_content before calling evaluate()."
-        )
+    if not body:
+        if not _body_missing_warned:
+            _body_missing_warned = True
+            warnings.warn(
+                "analysis['_body'] is missing — Usability scoring will be degraded. "
+                "Call evaluate() via the pipeline (run_tests._run_pipeline) or set "
+                "analysis['_body'] = skill_content before calling evaluate()."
+            )
     return analysis.get("_body", "")
-
-
-_body_missing_warned = False

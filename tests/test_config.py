@@ -71,22 +71,26 @@ class TestLoadConfig:
         assert ".rb" in exts
         assert ".go" in exts
 
-    def test_warns_when_pyyaml_missing(self, recwarn):
-        """When PyYAML is unavailable, load_config should warn."""
+    def test_pyyaml_is_hard_dependency(self):
+        """PyYAML is required — importing config raises ImportError if missing."""
         import scripts.config as cfg
-        saved = cfg.yaml
-        cfg.yaml = None
-        try:
-            config = cfg.load_config()
-            # Should still return a valid dict
-            assert "scoring" in config
-            assert "analysis" in config
-            # Should have warned about missing PyYAML
-            assert len(recwarn) >= 1
-            warning_msg = str(recwarn[0].message)
-            assert "PyYAML" in warning_msg
-        finally:
-            cfg.yaml = saved
+        # The module-level 'import yaml' means PyYAML is non-optional.
+        # If this test runs, PyYAML is installed (it's in requirements.txt).
+        assert cfg.yaml is not None
+
+    def test_local_yaml_overrides_default(self, tmp_path: Path, monkeypatch):
+        """A local.yaml beside default.yaml should be loaded and merged."""
+        # Point _DEFAULT_CONFIG_PATH to a temp dir so local.yaml loads from there
+        fake_config_dir = tmp_path / "config"
+        fake_config_dir.mkdir()
+        default = fake_config_dir / "default.yaml"
+        default.write_text("execution:\n  max_tests: 5\n", encoding="utf-8")
+        local = fake_config_dir / "local.yaml"
+        local.write_text("execution:\n  max_tests: 20\n", encoding="utf-8")
+
+        monkeypatch.setattr("scripts.config._DEFAULT_CONFIG_PATH", fake_config_dir / "default.yaml")
+        config = load_config()
+        assert config["execution"]["max_tests"] == 20, "local.yaml should override default"
 
 
 class TestDeepMerge:

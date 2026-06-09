@@ -12,10 +12,7 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-try:
-    import yaml
-except ImportError:  # pragma: no cover
-    yaml = None
+import yaml
 
 
 _DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "default.yaml"
@@ -81,14 +78,6 @@ def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
     """
     config: Dict[str, Any] = copy.deepcopy(_FALLBACK_CONFIG)
 
-    if yaml is None:
-        warnings.warn(
-            "PyYAML is not installed — default.yaml and local.yaml will be ignored. "
-            "Install via 'pip install PyYAML>=6.0' for full functionality "
-            "(multi-extension script validation, dimension weights, tier config)."
-        )
-        return config  # pragma: no cover
-
     # 1. Ship-default config
     _merge_from_file(config, _DEFAULT_CONFIG_PATH)
 
@@ -140,7 +129,7 @@ def validate_dimension_weights(dimensions: Dict[str, Any]) -> None:
 
 def _merge_from_file(config: Dict[str, Any], path: Path) -> None:
     """Deep-merge YAML file contents into *config* (in-place)."""
-    if not path.exists() or yaml is None:
+    if not path.exists():
         return
     try:
         with open(path, encoding="utf-8") as f:

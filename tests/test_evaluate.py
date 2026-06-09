@@ -178,6 +178,72 @@ class TestReadSkillBody:
         assert _read_skill_body(analysis) == ""
 
 
+class TestScoreCodeNoScripts:
+    """Tests for _score_code() when a skill has no scripts."""
+
+    def test_no_scripts_scores_zero_for_validity(self):
+        """When no scripts exist, syntactic_validity should be 0 (not 10)."""
+        from scripts.evaluate import _score_code
+
+        analysis = {
+            "scripts": {"total_count": 0, "valid_count": 0, "results": []},
+            "bundle": {"scripts_count": 0},
+        }
+        config = {
+            "scoring": {
+                "dimensions": {
+                    "Code": {
+                        "sub_scores": [
+                            {"name": "script_presence", "weight": 0.10},
+                            {"name": "syntactic_validity", "weight": 0.35},
+                            {"name": "error_handling", "weight": 0.30},
+                            {"name": "script_documentation", "weight": 0.25},
+                        ],
+                    },
+                },
+            },
+        }
+        score, detail = _score_code(analysis, {}, {}, config)
+        assert detail["syntactic_validity"] == 0, "No scripts should mean 0 validity"
+        assert detail["error_handling"] == 0, "No scripts should mean 0 error handling"
+        assert detail["script_documentation"] == 0, "No scripts should mean 0 documentation"
+        assert score < 5.0, f"No-script skill should not score well, got {score}"
+
+    def test_has_scripts_scores_positively(self):
+        """When scripts exist, code should score based on their quality."""
+        from scripts.evaluate import _score_code
+
+        analysis = {
+            "scripts": {
+                "total_count": 2,
+                "valid_count": 2,
+                "results": [
+                    {"path": "scripts/a.py", "language": "python", "syntax_valid": True, "has_docstring": True, "has_try_except": True},
+                    {"path": "scripts/b.py", "language": "python", "syntax_valid": True, "has_docstring": True, "has_try_except": True},
+                ],
+            },
+            "bundle": {"scripts_count": 2},
+        }
+        config = {
+            "scoring": {
+                "dimensions": {
+                    "Code": {
+                        "sub_scores": [
+                            {"name": "script_presence", "weight": 0.10},
+                            {"name": "syntactic_validity", "weight": 0.35},
+                            {"name": "error_handling", "weight": 0.30},
+                            {"name": "script_documentation", "weight": 0.25},
+                        ],
+                    },
+                },
+            },
+        }
+        score, detail = _score_code(analysis, {}, {}, config)
+        assert detail["syntactic_validity"] == 10
+        assert detail["script_presence"] >= 7
+        assert score >= 7.0, f"Valid scripts should score well, got {score}"
+
+
 def _resolve(score: float, tiers: Dict[str, Any]) -> str:
     """Helper: resolve tier without running full pipeline."""
     from scripts.config import resolve_tier

@@ -190,7 +190,6 @@ class TestDetectSkillActivation:
         assert _detect_skill_activation(
             "Use the example-validator skill to check YAML",
             "example-validator",
-            {},
         ) is True
 
     def test_activation_phrase_detected(self):
@@ -198,39 +197,37 @@ class TestDetectSkillActivation:
         assert _detect_skill_activation(
             "I'll use the skill to validate your config",
             "unknown",
-            {},
         ) is True
 
     def test_sections_and_code_detected(self):
         """Response with sections AND code should trigger."""
         response = "# Analysis\nSome text\n```\ncode\n```"
-        assert _detect_skill_activation(response, "unknown", {}) is True
+        assert _detect_skill_activation(response, "unknown") is True
 
     def test_code_alone_not_enough(self):
         """Code block ALONE (without sections) should NOT trigger."""
         response = "Here is some code:\n```\nprint('hello')\n```"
-        assert _detect_skill_activation(response, "unknown", {}) is False
+        assert _detect_skill_activation(response, "unknown") is False
 
     def test_sections_alone_not_enough(self):
         """Section headers ALONE (without code) should NOT trigger."""
         response = "# Title\n## Subtitle\nSome text"
-        assert _detect_skill_activation(response, "unknown", {}) is False
+        assert _detect_skill_activation(response, "unknown") is False
 
     def test_no_match_returns_false(self):
         """Totally unrelated response should not trigger."""
         response = "I don't know what you're talking about."
-        assert _detect_skill_activation(response, "unknown", {}) is False
+        assert _detect_skill_activation(response, "unknown") is False
 
     def test_empty_response(self):
         """Empty response should not trigger."""
-        assert _detect_skill_activation("", "unknown", {}) is False
+        assert _detect_skill_activation("", "unknown") is False
 
     def test_according_to_the_skill(self):
         """'according to the skill' should trigger."""
         assert _detect_skill_activation(
             "According to the skill instructions, I should...",
             "unknown",
-            {},
         ) is True
 
     def test_based_on_the_skill(self):
@@ -238,7 +235,6 @@ class TestDetectSkillActivation:
         assert _detect_skill_activation(
             "Based on the skill guidance, here's what to do",
             "unknown",
-            {},
         ) is True
 
 

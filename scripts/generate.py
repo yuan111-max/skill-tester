@@ -10,6 +10,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List
 
+from scripts.analyze import _strip_frontmatter
+
 
 # ── Public API ───────────────────────────────────────────────────────────
 
@@ -214,13 +216,21 @@ def _extract_capabilities(analysis: Dict[str, Any], content: str) -> List[Dict[s
         })
 
     # Also extract capability-like bullet points (verb phrases)
-    body_match = re.match(r"^---\n.*?\n(?:---|\.\.\.)\n(.*)", content, re.DOTALL)
-    body = body_match.group(1) if body_match else content
+    body = _strip_frontmatter(content)
 
     for match in re.finditer(r"^\s*[-*]\s+(?:How to|Steps? to|Process for|Guide to)\s(.+)$", body, re.MULTILINE | re.IGNORECASE):
         cap = match.group(1).strip().rstrip(".")
         if cap and not any(c["name"] == cap for c in capabilities):
             capabilities.append({"name": cap, "source": "bullet_point"})
+
+    # Also match action-verb bullets (e.g. "Validate JSON files", "Generate reports")
+    for match in re.finditer(r"^\s*[-*]\s+([A-Z].{9,})$", body, re.MULTILINE):
+        cap = match.group(1).strip().rstrip(".")
+        if cap and not any(c["name"] == cap for c in capabilities):
+            # Skip bullets that look like trigger conditions
+            skip_prefixes = ("when", "if", "before", "after", "to ", "for ", "in ", "on ")
+            if not cap.lower().startswith(skip_prefixes):
+                capabilities.append({"name": cap, "source": "bullet_point"})
 
     return capabilities
 

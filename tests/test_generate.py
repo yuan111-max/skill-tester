@@ -301,3 +301,34 @@ class TestExtractCapabilities:
         from scripts.generate import _extract_capabilities
         caps = _extract_capabilities({"content": {"sections": []}}, "")
         assert caps == []
+
+    def test_action_verb_bullets_extracted(self):
+        """Bullets starting with action verbs should be extracted."""
+        from scripts.generate import _extract_capabilities
+        content = "\n".join([
+            "## Features",
+            "- Validate JSON configuration files",
+            "- Generate summary reports from data",
+            "- Check YAML syntax and schema compliance",
+        ])
+        analysis = {"content": {"sections": ["Features"]}}
+        caps = _extract_capabilities(analysis, content)
+        names = [c["name"] for c in caps]
+        assert any("Validate JSON configuration files" in n for n in names)
+        assert any("Generate summary reports" in n for n in names)
+
+    def test_action_verb_skips_trigger_like_bullets(self):
+        """Bullets starting with 'when', 'if', 'before' should not be caps."""
+        from scripts.generate import _extract_capabilities
+        content = "\n".join([
+            "## How To Use",
+            "- Validate JSON files",
+            "- When debugging a parsing error",
+            "- Before committing changes",
+        ])
+        analysis = {"content": {"sections": ["How To Use"]}}
+        caps = _extract_capabilities(analysis, content)
+        names = [c["name"] for c in caps]
+        assert any("Validate JSON files" in n for n in names), "Action verb should be extracted"
+        assert not any("debugging" in n for n in names), "'when' bullets should be skipped"
+        assert not any("committing" in n for n in names), "'before' bullets should be skipped"

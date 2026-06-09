@@ -197,7 +197,7 @@ def _run_single_test(
         elapsed = time.monotonic() - start
         response = proc.stdout or proc.stderr or ""
 
-        triggered = _detect_skill_activation(response, skill_name, test)
+        triggered = _detect_skill_activation(response, skill_name)
         passed = triggered == expected
         status = "PASS" if passed else "FAIL"
 
@@ -233,7 +233,7 @@ def _run_single_test(
         }
 
 
-def _detect_skill_activation(response: str, skill_name: str, test: Dict[str, Any]) -> bool:
+def _detect_skill_activation(response: str, skill_name: str) -> bool:
     """Heuristic: detect if the skill was activated in the response.
 
     Looks for:
