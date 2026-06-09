@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List
 
-from scripts.analyze import _strip_frontmatter
+from scripts.utils import strip_frontmatter
 
 
 # ── Public API ───────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ def _extract_capabilities(analysis: Dict[str, Any], content: str) -> List[Dict[s
         })
 
     # Also extract capability-like bullet points (verb phrases)
-    body = _strip_frontmatter(content)
+    body = strip_frontmatter(content)
 
     how_re = r"^\s*[-*]\s+(?:How to|Steps? to|Process for|Guide to)\s(.+)$"
     for match in re.finditer(how_re, body, re.MULTILINE | re.IGNORECASE):

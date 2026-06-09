@@ -11,17 +11,7 @@ from typing import Any, Dict, List, Tuple
 
 import yaml
 
-
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
-
-def _strip_frontmatter(content: str) -> str:
-    """Return *content* with YAML frontmatter (--- ... ---) removed.
-
-    Returns the raw content unchanged if no frontmatter delimiters are found.
-    """
-    m = re.match(r"^---\n.*?\n(?:---|\.\.\.)\n(.*)", content, re.DOTALL)
-    return m.group(1) if m else content
+from scripts.utils import strip_frontmatter
 
 
 # ── Public API ───────────────────────────────────────────────────────────
@@ -75,7 +65,7 @@ def analyze_skill(skill_dir: Path, config: Dict[str, Any], content: str = "") ->
         "trigger_info": trigger_info,
         "scripts": script_analysis,
         "issues": list(dict.fromkeys(all_issues)),  # deduplicate, preserve order
-        "has_todo": bool(re.search(r"TODO|FIXME|XXX|HACK", _strip_frontmatter(content))),
+        "has_todo": bool(re.search(r"TODO|FIXME|XXX|HACK", strip_frontmatter(content))),
     }
 
 
@@ -217,7 +207,7 @@ def _check_anti_patterns(content: str, config: Dict[str, Any]) -> List[Dict[str,
     patterns = config.get("anti_patterns", [])
     matches: List[Dict[str, Any]] = []
 
-    body = _strip_frontmatter(content)
+    body = strip_frontmatter(content)
 
     for rule in patterns:
         try:

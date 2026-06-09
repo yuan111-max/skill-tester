@@ -18,6 +18,8 @@ _DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "defa
 
 # ── Sentinel default (used when YAML is unavailable or file is missing) ──
 
+_tier_validated: bool = False
+
 _FALLBACK_CONFIG: Dict[str, Any] = {
     "scoring": {
         "dimensions": {
@@ -100,10 +102,36 @@ def resolve_tier(final_score: float, tiers: Dict[str, Any]) -> str:
     sorted_tiers = sorted(
         tiers.items(), key=lambda kv: kv[1].get("min", 0), reverse=True
     )
+    _validate_tier_ordering(sorted_tiers)
     for label, spec in sorted_tiers:
         if final_score >= spec.get("min", 0):
             return label
     return "REJECT"
+
+
+def _validate_tier_ordering(sorted_tiers: list) -> None:
+    """Warn once if tier thresholds are not in strict descending order.
+
+    A misconfigured tier set (e.g. POWERFUL.min=7.0, STANDARD.min=8.5) means
+    the intended-higher tier may never match because a lower one intercepts.
+    """
+    global _tier_validated
+    if _tier_validated:
+        return
+    _tier_validated = True
+
+    for i in range(len(sorted_tiers) - 1):
+        current_min = sorted_tiers[i][1].get("min", 0)
+        next_min = sorted_tiers[i + 1][1].get("min", 0)
+        current_label = sorted_tiers[i][0]
+        next_label = sorted_tiers[i + 1][0]
+        if current_min <= next_min:
+            warnings.warn(
+                f"Tier threshold overlap: '{current_label}' (min={current_min}) "
+                f"should be > '{next_label}' (min={next_min}). "
+                f"The '{next_label}' tier may never be reached. "
+                f"Check your tier configuration."
+            )
 
 
 def validate_dimension_weights(dimensions: Dict[str, Any]) -> None:

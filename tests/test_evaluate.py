@@ -18,6 +18,9 @@ class TestEvaluate:
         """A well-formed skill should score >= 7.0 (STANDARD or better)."""
         analysis = analyze_skill(good_skill_dir, minimal_config)
         assert "error" not in analysis
+        # Provide _body so Usability scoring doesn't warn
+        if "_body" not in analysis:
+            analysis["_body"] = (good_skill_dir / "SKILL.md").read_text(encoding="utf-8")
 
         test_data = generate_tests(good_skill_dir, analysis, minimal_config)
 
@@ -41,6 +44,8 @@ class TestEvaluate:
         """A malformed skill should score < 7.0."""
         analysis = analyze_skill(bad_skill_dir, minimal_config)
         assert "error" not in analysis
+        if "_body" not in analysis:
+            analysis["_body"] = (bad_skill_dir / "SKILL.md").read_text(encoding="utf-8")
 
         test_data = generate_tests(bad_skill_dir, analysis, minimal_config)
         execution_result = {
@@ -58,6 +63,8 @@ class TestEvaluate:
     def test_execution_improves_score(self, good_skill_dir: Path, minimal_config: Dict[str, Any]):
         """Simulated execution results should be reflected in Usability score."""
         analysis = analyze_skill(good_skill_dir, minimal_config)
+        if "_body" not in analysis:
+            analysis["_body"] = (good_skill_dir / "SKILL.md").read_text(encoding="utf-8")
         test_data = generate_tests(good_skill_dir, analysis, minimal_config)
 
         # Simulate perfect execution

@@ -8,6 +8,7 @@ the CLI is unavailable or ``--execute`` was not passed.
 from __future__ import annotations
 
 import concurrent.futures
+import shutil
 import subprocess
 import sys
 import time
@@ -23,6 +24,7 @@ def execute_tests(
     analysis: Dict[str, Any],
     config: Dict[str, Any],
     force: bool = False,
+    quiet: bool = False,
 ) -> Dict[str, Any]:
     """Execute generated tests or return a skipped report.
 
@@ -36,6 +38,8 @@ def execute_tests(
         Full skill-tester configuration dict.
     force:
         Override ``execution.enabled`` check (set by ``--execute`` flag).
+    quiet:
+        Suppress progress output to stderr.
 
     Returns
     -------
@@ -54,7 +58,7 @@ def execute_tests(
             f"CLI '{exec_cfg.get('claude_command', 'claude')}' not found in PATH.",
         )
 
-    return _run_tests(test_data, claude_cmd, exec_cfg)
+    return _run_tests(test_data, claude_cmd, exec_cfg, quiet=quiet)
 
 
 # ── Internal execution helpers ───────────────────────────────────────────
@@ -76,25 +80,15 @@ def _resolve_claude(command: str) -> Optional[str]:
 
 
 def _which(program: str) -> Optional[str]:
-    """Simple ``which``-alike that also works on Windows."""
-    try:
-        result = subprocess.run(
-            [program, "--version"] if not program.endswith((".cmd", ".exe")) else [program],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if result.returncode == 0:
-            return program
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
-    return None
+    """Resolve *program* path via ``shutil.which()``."""
+    return shutil.which(program)
 
 
 def _run_tests(
     test_data: Dict[str, Any],
     claude_cmd: str,
     exec_cfg: Dict[str, Any],
+    quiet: bool = False,
 ) -> Dict[str, Any]:
     """Execute each test through the Claude CLI subprocess in parallel.
 
@@ -152,11 +146,12 @@ def _run_tests(
                 stats["error"] += 1
 
             elapsed = result.get("elapsed_seconds", 0)
-            print(
-                f"  [{live_count + 1}/{n}] {status:6s} {elapsed:4.1f}s  "
-                f"{result.get('prompt', '')[:50]}",
-                file=sys.stderr,
-            )
+            if not quiet:
+                print(
+                    f"  [{live_count + 1}/{n}] {status:6s} {elapsed:4.1f}s  "
+                    f"{result.get('prompt', '')[:50]}",
+                    file=sys.stderr,
+                )
             live_count += 1
 
     return {

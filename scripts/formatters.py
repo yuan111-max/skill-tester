@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+from scripts.utils import visible_length
+
 
 # ── JSON output ────────────────────────────────────────────────────────────
 
@@ -23,6 +25,10 @@ def output_json(reports: List[Dict[str, Any]], dirs: List[Path]) -> None:
             "skill": report.get("skill"),
             "description": report.get("description"),
             "issues": report.get("issues", []),
+            "anti_patterns": report.get("anti_patterns", []),
+            "bundle": report.get("bundle", {}),
+            "tests": report.get("tests", {}),
+            "execution": report.get("execution", {}),
             "evaluation": report.get("evaluation"),
             "elapsed_seconds": report.get("elapsed"),
         }
@@ -44,17 +50,18 @@ def output_table(reports: List[Dict[str, Any]], dirs: List[Path], use_color: boo
 
     # Compute column width from headers AND content values so that
     # wide values (e.g. "7.90  POWERFUL") don't overflow.
-    all_widths = [len(h) for h in headers]
+    # Use visible_length() to ignore any ANSI escape codes in cell values.
+    all_widths = [visible_length(h) for h in headers]
     for r in reports:
         ev = r.get("evaluation", {})
         for name, score in ev.get("dimensions", {}).items():
-            all_widths.append(len(f"{score:.1f}"))
+            all_widths.append(visible_length(f"{score:.1f}"))
         final = ev.get("final", "-")
         tier = ev.get("tier", "")
         if isinstance(final, (int, float)):
-            all_widths.append(len(f"{final:.2f}  {tier}"))
+            all_widths.append(visible_length(f"{final:.2f}  {tier}"))
         else:
-            all_widths.append(len(str(final)))
+            all_widths.append(visible_length(str(final)))
     col_width = max(all_widths) + 2
     sep = "-" * col_width
 
@@ -97,7 +104,11 @@ def output_table(reports: List[Dict[str, Any]], dirs: List[Path], use_color: boo
 
 def _print_table_row(row: List[str], width: int, bold: bool = False) -> None:
     """Print one table row with fixed-width columns."""
-    parts = [f"{cell:{width}}" for cell in row]
+    parts = []
+    for cell in row:
+        visible_w = visible_length(cell)
+        pad = max(0, width - visible_w)
+        parts.append(f"{cell}{' ' * pad}")
     line = "".join(parts)
     if bold:
         print(f"\033[1m{line}\033[0m")

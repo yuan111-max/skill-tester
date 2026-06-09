@@ -22,24 +22,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install flake8 mypy PyYAML pytest pytest-cov
-
-      - name: Debug — environment info
-        run: |
-          echo "Python: $(python --version)"
-          echo "Pip:    $(pip --version)"
-          pip list 2>/dev/null | grep -iE "PyYAML|pytest|coverage|flake8|mypy"
-          echo "--- Import check ---"
-          python -c "import scripts.analyze; import scripts.config; import scripts.evaluate; print('All imports OK')"
-          echo "--- Test collection check ---"
-          python -m pytest tests/ --collect-only -q 2>&1
-          echo "--- PWD / file check ---"
-          ls -la scripts/*.py
-          echo "--- Encoding check ---"
-          file tests/fixtures/bad_skill/SKILL.md tests/fixtures/good_skill/SKILL.md 2>/dev/null || echo "file command not available"
 
       - name: Lint with flake8
         run: |
@@ -51,32 +45,7 @@ jobs:
 
       - name: Test with pytest
         run: |
-          set +e
-          echo "=== Running all tests together ==="
-          python -m pytest tests/ -v --tb=long -x 2>&1 | tee /tmp/pytest_all_${{ matrix.python-version }}.txt || true
-          echo "=== Running per-file (fallback) ==="
-          overall_rc=0
-          for tf in tests/test_analyze.py tests/test_config.py tests/test_evaluate.py tests/test_execute.py tests/test_formatters.py tests/test_generate.py tests/test_integration.py tests/test_run_tests.py; do
-            echo "=== $tf ==="
-            pytest "$tf" -v --tb=long 2>&1 | tee -a /tmp/pytest_perfile_${{ matrix.python-version }}.txt
-            rc=${PIPESTATUS[0]}
-            echo "Exit: $rc"
-            if [ "$rc" != "0" ]; then
-              overall_rc=1
-              grep -E "FAILED|ERROR|FAIL|FAILURES|Error|AssertionError|assert" /tmp/pytest_perfile_${{ matrix.python-version }}.txt | while read -r line; do
-                echo "::error file=$tf,title=Test Failure::$line"
-              done
-            fi
-          done
-          echo "PYTEST_EXIT=$overall_rc" >> "$GITHUB_ENV"
-          exit $overall_rc
-
-      - name: Upload pytest report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-reports-${{ matrix.python-version }}
-          path: /tmp/pytest_*.txt
+          python -m pytest tests/ -v --tb=long -x
 
       - name: Validate self-test
         run: |

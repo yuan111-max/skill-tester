@@ -346,30 +346,30 @@ class TestCheckAntiPatterns:
 
 
 class TestStripFrontmatter:
-    """Tests for _strip_frontmatter()."""
+    """Tests for strip_frontmatter()."""
 
     def test_strips_full_frontmatter(self):
         """YAML frontmatter block should be removed."""
-        from scripts.analyze import _strip_frontmatter
+        from scripts.utils import strip_frontmatter
         content = "---\nname: test\n---\n# Body\nContent here"
-        assert _strip_frontmatter(content) == "# Body\nContent here"
+        assert strip_frontmatter(content) == "# Body\nContent here"
 
     def test_strips_dotdotdot_delimiter(self):
         """The ... end delimiter should also be handled."""
-        from scripts.analyze import _strip_frontmatter
+        from scripts.utils import strip_frontmatter
         content = "---\nname: test\n...\n# Body"
-        assert _strip_frontmatter(content) == "# Body"
+        assert strip_frontmatter(content) == "# Body"
 
     def test_no_frontmatter_returns_unchanged(self):
         """Content without frontmatter should be returned unchanged."""
-        from scripts.analyze import _strip_frontmatter
+        from scripts.utils import strip_frontmatter
         content = "# Just body\nNo frontmatter here"
-        assert _strip_frontmatter(content) == content
+        assert strip_frontmatter(content) == content
 
     def test_empty_content_returns_empty(self):
         """Empty content should return empty string."""
-        from scripts.analyze import _strip_frontmatter
-        assert _strip_frontmatter("") == ""
+        from scripts.utils import strip_frontmatter
+        assert strip_frontmatter("") == ""
 
 
 class TestAnalyzeBundle:

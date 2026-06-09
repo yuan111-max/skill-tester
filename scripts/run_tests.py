@@ -31,6 +31,12 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List
 
+try:
+    from importlib.metadata import version as _pkg_version
+    __version__ = _pkg_version("skill-tester")
+except Exception:
+    __version__ = "2.0.0"
+
 # Add parent dir so ``scripts`` is importable when run as ``python scripts/run_tests.py``
 _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR.parent) not in sys.path:
@@ -98,6 +104,12 @@ def build_parser():
         action="store_true",
         default=False,
         help="Disable ANSI colour in output",
+    )
+    parser.add_argument(
+        "--version", "-V",
+        action="version",
+        version=f"skill-tester {__version__}",
+        help="Show version number and exit",
     )
     return parser
 
@@ -202,7 +214,7 @@ def _run_pipeline(
     if not quiet:
         print_stage("Stage 3: Execution", 2, use_color)
 
-    execution_result = execute_tests(test_data, analysis, config, force=execute_enabled)
+    execution_result = execute_tests(test_data, analysis, config, force=execute_enabled, quiet=quiet)
 
     if not quiet:
         summary = execution_result.get("summary", {})
