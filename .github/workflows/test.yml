@@ -24,21 +24,28 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install PyYAML pytest pytest-cov
+          pip install flake8 mypy PyYAML pytest pytest-cov
+          pip install -e .
+
+      - name: Debug — environment info
+        run: |
+          echo "Python: $(python --version)"
+          echo "Pip:    $(pip --version)"
+          pip list 2>/dev/null | grep -E "PyYAML|pytest|coverage|flake8|mypy|skill"
+          echo "--- Import check ---"
+          python -c "import scripts.analyze; import scripts.config; import scripts.evaluate; import scripts.execute; import scripts.generate; import scripts.formatters; print('All imports OK')"
 
       - name: Lint with flake8
         run: |
-          pip install flake8
           flake8 scripts/ tests/
 
       - name: Type check with mypy
         run: |
-          pip install mypy
           mypy scripts/
 
       - name: Test with pytest
         run: |
-          pytest tests/ -v --cov=scripts --cov-report=term-missing --cov-fail-under=70
+          pytest tests/ -v --tb=long --cov=scripts --cov-report=term-missing --cov-fail-under=70
 
       - name: Validate self-test
         run: |
