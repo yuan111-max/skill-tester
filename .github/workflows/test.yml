@@ -54,11 +54,18 @@ jobs:
           overall_rc=0
           for tf in tests/test_analyze.py tests/test_config.py tests/test_evaluate.py tests/test_execute.py tests/test_formatters.py tests/test_generate.py tests/test_integration.py tests/test_run_tests.py; do
             echo "=== $tf ==="
-            pytest "$tf" --tb=line -q 2>&1
+            out=$(pytest "$tf" --tb=short -q 2>&1)
             rc=$?
+            echo "$out"
             echo "Exit: $rc"
             echo ""
-            if [ "$rc" != "0" ]; then overall_rc=1; fi
+            if [ "$rc" != "0" ]; then
+              overall_rc=1
+              # Extract failure details and emit as annotations
+              echo "$out" | grep -E "FAILED|ERROR|assert|Error|AssertionError" | while read -r line; do
+                echo "::error file=$tf,title=Test Failure::$line"
+              done
+            fi
           done
           exit $overall_rc
 
