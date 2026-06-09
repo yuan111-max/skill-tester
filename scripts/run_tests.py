@@ -56,8 +56,7 @@ from scripts.formatters import (  # noqa: E402
 )
 
 
-# ── CLI ──────────────────────────────────────────────────────────────────
-
+# ── CLI ─────────────────────────────────────────────────────────────────────
 
 def build_parser():
     import argparse
@@ -163,8 +162,7 @@ def main():
     sys.exit(exit_code)
 
 
-# ── Pipeline ─────────────────────────────────────────────────────────────
-
+# ── Pipeline ────────────────────────────────────────────────────────────────
 
 def _run_pipeline(
     skill_dir: Path,
@@ -182,7 +180,7 @@ def _run_pipeline(
     if skill_md_path.exists():
         skill_body = skill_md_path.read_text(encoding="utf-8")
 
-    # ── Stage 1: Analysis ──────────────────────────────────────────────
+    # ── Stage 1: Analysis ──────────────────────────────────────────────────
     if not quiet:
         print_stage("Stage 1: Analysis", 2, use_color)
 
@@ -197,7 +195,7 @@ def _run_pipeline(
         print(f"    Frontmatter: name='{analysis['name']}', "
               f"issues={len(issues)}")
 
-    # ── Stage 2: Generation ────────────────────────────────────────────
+    # ── Stage 2: Generation ────────────────────────────────────────────────
     if not quiet:
         print_stage("Stage 2: Test Generation", 2, use_color)
 
@@ -210,11 +208,13 @@ def _run_pipeline(
         print(f"    {trig} trigger + {nontrig} non-trigger + {edge} edge = "
               f"{test_data['total_generated']} total tests")
 
-    # ── Stage 3: Execution ─────────────────────────────────────────────
+    # ── Stage 3: Execution ─────────────────────────────────────────────────
     if not quiet:
         print_stage("Stage 3: Execution", 2, use_color)
 
-    execution_result = execute_tests(test_data, analysis, config, force=execute_enabled, quiet=quiet)
+    execution_result = execute_tests(
+        test_data, analysis, config, force=execute_enabled, quiet=quiet
+    )
 
     if not quiet:
         summary = execution_result.get("summary", {})
@@ -224,7 +224,7 @@ def _run_pipeline(
         else:
             print(f"    SKIPPED - {execution_result.get('skip_reason', 'use --execute to enable')}")
 
-    # ── Stage 4: Evaluation ────────────────────────────────────────────
+    # ── Stage 4: Evaluation ────────────────────────────────────────────────
     if not quiet:
         print_stage("Stage 4: Evaluation", 2, use_color)
 
@@ -245,7 +245,7 @@ def _run_pipeline(
     }
 
 
-# ── Entry ────────────────────────────────────────────────────────────────
+# ── Entry ────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     main()
