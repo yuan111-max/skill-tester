@@ -344,6 +344,36 @@ class TestCheckAntiPatterns:
         results = _check_anti_patterns(content, config)
         assert results == []
 
+    def test_ignores_todo_in_code_blocks(self):
+        """TODO inside a fenced code block should NOT be flagged."""
+        from scripts.analyze import _check_anti_patterns
+        config = {"anti_patterns": [
+            {"pattern": "TODO|FIXME", "type": "placeholder", "severity": "high", "message": "Placeholder"},
+        ]}
+        content = "---\nname: test\n---\nDetects `TODO`/`FIXME`/`XXX` tokens.\n\n```bash\ngit diff TODO\n```\n"
+        results = _check_anti_patterns(content, config)
+        assert len(results) == 0
+
+    def test_ignores_todo_in_inline_backtick(self):
+        """TODO inside inline backtick code should NOT be flagged."""
+        from scripts.analyze import _check_anti_patterns
+        config = {"anti_patterns": [
+            {"pattern": "TODO|FIXME", "type": "placeholder", "severity": "high", "message": "Placeholder"},
+        ]}
+        content = "---\nname: test\n---\nDetects `TODO`/`FIXME` markers in SKILL.md."
+        results = _check_anti_patterns(content, config)
+        assert len(results) == 0
+
+    def test_still_detects_todo_in_prose(self):
+        """TODO in regular prose (not code blocks) should still be flagged."""
+        from scripts.analyze import _check_anti_patterns
+        config = {"anti_patterns": [
+            {"pattern": "TODO", "type": "placeholder", "severity": "high", "message": "Placeholder"},
+        ]}
+        content = "---\nname: test\n---\nThis section still needs work. TODO: finish this."
+        results = _check_anti_patterns(content, config)
+        assert len(results) >= 1
+
 
 class TestStripFrontmatter:
     """Tests for strip_frontmatter()."""
@@ -410,3 +440,20 @@ class TestAnalyzeBundle:
         assert result["assets_count"] == 1
         assert any("guide.md" in e["path"] for e in result["references"])
         assert any("logo.png" in e["path"] for e in result["assets"])
+
+    def test_ignores_pycache(self, tmp_path: Path):
+        """Files inside __pycache__ directories should be excluded."""
+        from scripts.analyze import _analyze_bundle
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        (scripts_dir / "main.py").write_text("x = 1")
+        pycache = scripts_dir / "__pycache__"
+        pycache.mkdir()
+        (pycache / "main.cpython-312.pyc").write_text("fake")
+        (pycache / "utils.cpython-312.pyc").write_text("fake")
+        config = {"analysis": {"script_extensions": [".py", ".sh"]}}
+        result = _analyze_bundle(tmp_path, config)
+        assert result["scripts_count"] == 1
+        paths = [ e["path"].replace("\\", "/") for e in result["scripts"] ]
+        assert "scripts/main.py" in paths
+        assert not any("__pycache__" in p for p in paths)

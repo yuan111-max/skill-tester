@@ -175,6 +175,42 @@ class TestGenerateTriggerTests:
         prompts = [t["prompt"] for t in tests]
         assert prompts.count("validate my yaml") == 1
 
+    def test_keyword_match_filters_fragments(self):
+        """keyword_match source should filter out fragmentary low-quality text."""
+        from scripts.generate import _generate_trigger_tests
+        # Content with a fragmentary keyword_match capture
+        content = "This skill triggers when the user says: > non-trigger > edge case. More text here."
+        analysis = {
+            "name": "test-skill",
+            "description": "Validates things",
+            "trigger_info": {"trigger_phrases": [], "trigger_count": 0},
+        }
+        tests = _generate_trigger_tests(analysis, content, {})
+        fragmentary = [t for t in tests if t.get("source") == "keyword_match"]
+        # Fragmentary capture starting with '>' should be filtered out
+        prompts = [t["prompt"] for t in fragmentary]
+        assert not any(p.startswith(">") for p in prompts)
+
+    def test_keyword_match_ignores_code_blocks(self):
+        """Trigger keywords inside code blocks should not produce keyword_match tests."""
+        from scripts.generate import _generate_trigger_tests
+        content = (
+            "Some text before.\n"
+            "```\n"
+            "Run when config changes\n"
+            "```\n"
+            "More regular text."
+        )
+        analysis = {
+            "name": "test-skill",
+            "description": "",
+            "trigger_info": {"trigger_phrases": [], "trigger_count": 0},
+        }
+        tests = _generate_trigger_tests(analysis, content, {})
+        # The "Run when" phrase is inside a code block, should not be extracted
+        prompts = [t["prompt"] for t in tests]
+        assert not any("Run when" in p for p in prompts)
+
 
 class TestGenerateNegativeTests:
     """Tests for _generate_negative_tests()."""
@@ -331,3 +367,38 @@ class TestExtractCapabilities:
         assert any("Validate JSON files" in n for n in names), "Action verb should be extracted"
         assert not any("debugging" in n for n in names), "'when' bullets should be skipped"
         assert not any("committing" in n for n in names), "'before' bullets should be skipped"
+
+
+class TestIsQualityPrompt:
+    """Tests for _is_quality_prompt()."""
+
+    def test_accepts_meaningful_sentence(self):
+        """A well-formed sentence should pass the quality check."""
+        from scripts.generate import _is_quality_prompt
+        assert _is_quality_prompt("Validate JSON files before commit")
+
+    def test_rejects_too_short(self):
+        """Phrases shorter than 15 characters should be rejected."""
+        from scripts.generate import _is_quality_prompt
+        assert not _is_quality_prompt("short phrase")
+
+    def test_rejects_code_fragment_with_brackets(self):
+        """Phrases with code-like brackets should be rejected."""
+        from scripts.generate import _is_quality_prompt
+        assert not _is_quality_prompt("Call this skill when foo() is called")
+
+    def test_rejects_connector_start(self):
+        """Phrases starting with connector words should be rejected."""
+        from scripts.generate import _is_quality_prompt
+        assert not _is_quality_prompt("and the config file is present")
+        assert not _is_quality_prompt("to validate the json schema")
+
+    def test_rejects_lowercase_start(self):
+        """Phrases not starting with uppercase/digit should be rejected."""
+        from scripts.generate import _is_quality_prompt
+        assert not _is_quality_prompt(" just some trailing fragment")
+
+    def test_accepts_digit_start(self):
+        """Phrases starting with a digit should be accepted."""
+        from scripts.generate import _is_quality_prompt
+        assert _is_quality_prompt("3-stage validation pipeline")

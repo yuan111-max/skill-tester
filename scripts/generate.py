@@ -88,12 +88,48 @@ _TRIGGER_KEYWORDS = [
     "apply when", "run when", "execute when", "call this skill",
 ]
 
+_FENCED_CODE_BLOCK_RE = re.compile(r"```.*?```", re.DOTALL)
+_INLINE_CODE_RE = re.compile(r"`[^`]+`")
+
+
+def _strip_code_blocks(text: str) -> str:
+    """Remove fenced code blocks and inline backtick code from *text*."""
+    text = _FENCED_CODE_BLOCK_RE.sub("", text)
+    text = _INLINE_CODE_RE.sub("", text)
+    return text
+
+
+def _is_quality_prompt(phrase: str) -> bool:
+    """Return True if *phrase* looks like a meaningful test prompt.
+
+    Filters out fragmentary captures, code snippets, and connector words.
+    """
+    phrase = phrase.strip()
+    if len(phrase) < 15:
+        return False
+    # Code fragments or markup
+    if re.search(r"[{}\[\]()]|->|=>|``", phrase):
+        return False
+    # Fragmentary starts (lowercase connector words)
+    if re.match(r"^(and|or|the|to |a |an |in |on |at |for |of |with |is |are )", phrase, re.IGNORECASE):
+        return False
+    # Fragmentary ends (trailing... or incomplete)
+    if re.search(r"[.>]\.\.\.$", phrase):
+        return False
+    # Must start with an uppercase letter or digit (readable prompt start)
+    if not re.match(r"^[A-Z0-9]", phrase):
+        return False
+    return True
+
 
 def _generate_trigger_tests(
     analysis: Dict[str, Any], content: str, config: Dict[str, Any]
 ) -> List[Dict[str, Any]]:
     """Generate prompts that should trigger the skill."""
     tests: List[Dict[str, Any]] = []
+
+    # Strip code blocks from content before scanning for trigger phrases
+    clean_content = _strip_code_blocks(content)
 
     # 1. From trigger_info phrases (most reliable)
     seen_prompts: set = set()
@@ -110,7 +146,7 @@ def _generate_trigger_tests(
     # 2. From "When to Use" / usage sections
     for match in re.finditer(
         r"(?:##\s+(?:When to Use|Usage|Triggers?).*?\n)(.*?)(?=\n##\s|\Z)",
-        content, re.IGNORECASE | re.DOTALL,
+        clean_content, re.IGNORECASE | re.DOTALL,
     ):
         bullets = re.findall(r"^\s*[-*]\s+(.+)$", match.group(1), re.MULTILINE)
         for b in bullets:
@@ -123,13 +159,15 @@ def _generate_trigger_tests(
                     "source": "usage_section",
                 })
 
-    # 3. From trigger keyword mentions in body
+    # 3. From trigger keyword mentions in body (with quality filter)
     for match in re.finditer(
         rf"(?:{'|'.join(_TRIGGER_KEYWORDS)})[:\s]+(.*?)(?:\n\n|\n##|\Z)",
-        content, re.IGNORECASE | re.DOTALL,
+        clean_content, re.IGNORECASE | re.DOTALL,
     ):
-        phrase = match.group(1).strip()
-        if len(phrase) > 10 and not any(t["prompt"] == phrase for t in tests):
+        phrase = match.group(1).strip().rstrip(".")
+        if (len(phrase) > 10
+                and _is_quality_prompt(phrase)
+                and not any(t["prompt"] == phrase for t in tests)):
             tests.append({
                 "type": "trigger",
                 "prompt": phrase,

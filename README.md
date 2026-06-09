@@ -67,6 +67,7 @@ python scripts/run_tests.py <skill-dirs...> [选项]
   --config / -c           自定义 YAML 配置文件路径
   --quiet / -q            隐藏阶段进度输出
   --no-color              禁用输出中的 ANSI 颜色
+  --version / -V          显示版本号并退出
 ```
 
 ---
@@ -132,6 +133,7 @@ skill-tester/
 │   ├── __init__.py
 │   ├── run_tests.py             # CLI 入口
 │   ├── config.py                # 配置加载器
+│   ├── utils.py                 # 共享工具函数
 │   ├── analyze.py               # 阶段 1
 │   ├── generate.py              # 阶段 2
 │   ├── execute.py               # 阶段 3

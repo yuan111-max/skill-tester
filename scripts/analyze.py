@@ -171,12 +171,20 @@ def _analyze_bundle(skill_dir: Path, config: Dict[str, Any]) -> Dict[str, Any]:
             return []
         entries: List[Dict[str, Any]] = []
         for item in path.rglob("*"):
-            if item.is_file() and not item.name.startswith("."):
-                entries.append({
-                    "path": str(item.relative_to(skill_dir)),
-                    "size": item.stat().st_size,
-                    "ext": item.suffix,
-                })
+            if not item.is_file():
+                continue
+            # Skip hidden files, __pycache__ contents, and .pyc bytecode
+            if item.name.startswith("."):
+                continue
+            if "__pycache__" in item.parts:
+                continue
+            if item.suffix == ".pyc":
+                continue
+            entries.append({
+                "path": str(item.relative_to(skill_dir)),
+                "size": item.stat().st_size,
+                "ext": item.suffix,
+            })
         return entries
 
     scripts = _scan("scripts")
@@ -202,12 +210,28 @@ def _analyze_bundle(skill_dir: Path, config: Dict[str, Any]) -> Dict[str, Any]:
 # ── Anti-pattern detection ──────────────────────────────────────────────
 
 
+_FENCED_CODE_BLOCK_RE = re.compile(r"```.*?```", re.DOTALL)
+_INLINE_CODE_RE = re.compile(r"`[^`]+`")
+
+
+def _strip_code_blocks(text: str) -> str:
+    """Remove fenced code blocks (```...```) and inline backtick code from *text*."""
+    text = _FENCED_CODE_BLOCK_RE.sub("", text)
+    text = _INLINE_CODE_RE.sub("", text)
+    return text
+
+
 def _check_anti_patterns(content: str, config: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Scan SKILL.md body for known anti-patterns."""
+    """Scan SKILL.md body for known anti-patterns.
+
+    Fenced code blocks and inline backtick code are stripped before scanning
+    to avoid false positives when keywords appear in examples or feature
+    descriptions.
+    """
     patterns = config.get("anti_patterns", [])
     matches: List[Dict[str, Any]] = []
 
-    body = strip_frontmatter(content)
+    body = _strip_code_blocks(strip_frontmatter(content))
 
     for rule in patterns:
         try:
@@ -276,6 +300,8 @@ def _validate_scripts(skill_dir: Path, config: Dict[str, Any]) -> Dict[str, Any]
 
     for ext in extensions:
         for f in sorted(scripts_dir.rglob(f"*{ext}")):
+            if "__pycache__" in f.parts:
+                continue
             if f.suffix == ".py":
                 content = f.read_text(encoding="utf-8")
                 syntax_valid = _check_python_syntax(f, content)

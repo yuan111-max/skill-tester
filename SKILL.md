@@ -115,6 +115,11 @@ python scripts/run_tests.py ../my-skill --output json
 python scripts/run_tests.py ../my-skill --config ./strict.yaml
 ```
 
+### Check version:
+```bash
+python scripts/run_tests.py --version
+```
+
 ## Limitations
 
 - Stage 3 execution requires the `claude` CLI to be installed in PATH
