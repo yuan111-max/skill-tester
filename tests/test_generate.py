@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict
 
-import pytest
 
 from scripts.analyze import analyze_skill
 from scripts.generate import generate_tests

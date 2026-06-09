@@ -2,6 +2,7 @@
 
 import json
 
+
 def validate_json(filepath: str) -> dict:
     with open(filepath) as f:
         try:

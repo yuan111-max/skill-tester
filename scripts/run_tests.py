@@ -36,13 +36,12 @@ _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR.parent) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR.parent))
 
-from scripts.config import load_config
-from scripts.analyze import analyze_skill
-from scripts.generate import generate_tests
-from scripts.execute import execute_tests
-from scripts.evaluate import evaluate
-from scripts.formatters import (
-    color_tier,
+from scripts.config import load_config  # noqa: E402
+from scripts.analyze import analyze_skill  # noqa: E402
+from scripts.generate import generate_tests  # noqa: E402
+from scripts.execute import execute_tests  # noqa: E402
+from scripts.evaluate import evaluate  # noqa: E402
+from scripts.formatters import (  # noqa: E402
     output_json,
     output_summary,
     output_table,

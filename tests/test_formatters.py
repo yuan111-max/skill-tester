@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Dict
 from unittest.mock import patch
 
-import pytest
 
 from scripts.formatters import (
     _print_table_row,

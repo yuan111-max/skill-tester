@@ -144,13 +144,13 @@ def output_summary(report: Dict[str, Any], skill_dir: Path, use_color: bool) -> 
         if len(issues) > 5:
             print(f"    ... and {len(issues) - 5} more")
     else:
-        print(f"\n  [OK] No structural issues found")
+        print("\n  [OK] No structural issues found")
 
     if ap_count > 0:
         print(f"  [!] {ap_count} anti-pattern(s) detected (see --output json for details)")
 
     bundle = report.get("bundle", {})
-    print(f"\n  Bundle:")
+    print("\n  Bundle:")
     print(f"    scripts={bundle.get('scripts_count', 0)}  "
           f"references={bundle.get('references_count', 0)}  "
           f"assets={bundle.get('assets_count', 0)}")
@@ -162,7 +162,7 @@ def output_summary(report: Dict[str, Any], skill_dir: Path, use_color: bool) -> 
         print(f"  Execution: {exec_summary.get('passed', 0)}/{exec_summary.get('total', 0)} passed "
               f"({exec_summary.get('failed', 0)} failed)")
     else:
-        print(f"  Execution: SKIPPED (pass --execute to run live tests)")
+        print("  Execution: SKIPPED (pass --execute to run live tests)")
 
     print(f"\n  {B}4D Scores:{R}")
     for dim, score in dims.items():

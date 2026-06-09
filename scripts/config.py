@@ -7,10 +7,9 @@ and applies CLI overrides.  All magic numbers live here — nowhere else.
 from __future__ import annotations
 
 import copy
-import os
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import yaml
 

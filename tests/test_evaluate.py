@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict
 
-import pytest
 
 from scripts.analyze import analyze_skill
 from scripts.generate import generate_tests
@@ -94,7 +93,6 @@ class TestEvaluate:
         assert _resolve(5.0, tiers) == "BASIC"
         assert _resolve(4.0, tiers) == "REJECT"
         assert _resolve(0.0, tiers) == "REJECT"
-
 
     def test_warns_on_unregistered_dimension(self, good_skill_dir: Path, recwarn):
         """A dimension configured but without a scorer should warn."""

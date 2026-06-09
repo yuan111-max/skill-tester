@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-import pytest
 
 from scripts.analyze import analyze_skill
 from scripts.evaluate import evaluate

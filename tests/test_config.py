@@ -6,11 +6,9 @@ import copy
 from pathlib import Path
 from typing import Any, Dict
 
-import pytest
 
 from scripts.config import (
     _deep_merge,
-    _DEFAULT_CONFIG_PATH,
     load_config,
     resolve_tier,
     validate_dimension_weights,

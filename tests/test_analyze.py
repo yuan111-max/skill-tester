@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict
 
-import pytest
 
 from scripts.analyze import analyze_skill
 
@@ -411,4 +410,3 @@ class TestAnalyzeBundle:
         assert result["assets_count"] == 1
         assert any("guide.md" in e["path"] for e in result["references"])
         assert any("logo.png" in e["path"] for e in result["assets"])
-

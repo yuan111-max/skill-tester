@@ -7,7 +7,6 @@ import subprocess
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-import pytest
 
 from scripts.execute import (
     _detect_skill_activation,

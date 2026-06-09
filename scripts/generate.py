@@ -139,7 +139,6 @@ def _generate_trigger_tests(
 
     # 4. From skill name and description
     skill_name = analysis.get("name", "")
-    skill_desc = analysis.get("description", "")
     if skill_name and skill_name != "unknown":
         tests.append({
             "type": "trigger",
@@ -170,9 +169,10 @@ def _generate_negative_tests(analysis: Dict[str, Any], content: str) -> List[Dic
     # but mentioning the wrong task
     domain_words = _extract_domain_words(skill_desc)
     if domain_words:
+        domain_preview = " ".join(domain_words[:3])
         negatives.append({
             "type": "non_trigger",
-            "prompt": f"Tell me about {' '.join(domain_words[:3])} generally, I don't need a specific task",
+            "prompt": f"Tell me about {domain_preview} generally, I don't need a specific task",
             "expected_trigger": False,
             "source": "domain_general_knowledge",
         })
@@ -218,7 +218,8 @@ def _extract_capabilities(analysis: Dict[str, Any], content: str) -> List[Dict[s
     # Also extract capability-like bullet points (verb phrases)
     body = _strip_frontmatter(content)
 
-    for match in re.finditer(r"^\s*[-*]\s+(?:How to|Steps? to|Process for|Guide to)\s(.+)$", body, re.MULTILINE | re.IGNORECASE):
+    how_re = r"^\s*[-*]\s+(?:How to|Steps? to|Process for|Guide to)\s(.+)$"
+    for match in re.finditer(how_re, body, re.MULTILINE | re.IGNORECASE):
         cap = match.group(1).strip().rstrip(".")
         if cap and not any(c["name"] == cap for c in capabilities):
             capabilities.append({"name": cap, "source": "bullet_point"})
@@ -244,7 +245,10 @@ def _generate_edge_cases(content: str, analysis: Dict[str, Any]) -> List[Dict[st
 
     # Find "do not", "avoid", "warning", "caution", "limitation" sections
     for match in re.finditer(
-        r"(?:##\s+(?:Limitations?|Caveats?|Warnings?|Do Not|Avoid|Troubleshooting).*?\n)(.*?)(?=\n##\s|\Z)",
+        (
+            r"(?:##\s+(?:Limitations?|Caveats?|Warnings?|Do Not|Avoid|Troubleshooting).*?\n)"
+            r"(.*?)(?=\n##\s|\Z)"
+        ),
         content, re.IGNORECASE | re.DOTALL,
     ):
         bullets = re.findall(r"^\s*[-*]\s+(.+)$", match.group(1), re.MULTILINE)

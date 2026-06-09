@@ -11,3 +11,5 @@ exclude =
 per-file-ignores =
     # __init__.py files may have unused imports
     __init__.py: F401
+    # Test files: long lines common in test data
+    tests/*: E501

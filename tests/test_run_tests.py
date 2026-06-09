@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 

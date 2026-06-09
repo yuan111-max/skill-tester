@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import re
 import warnings
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from .config import resolve_tier
 
@@ -114,11 +113,13 @@ def _score_documentation(
     """
     content = analysis.get("content", {})
     issues = analysis.get("issues", [])
-    desc = analysis.get("description", "")
     anti_patterns = analysis.get("anti_patterns", [])
 
     # 1. Frontmatter validity (0-10)
-    fm_issues = [i for i in issues if "frontmatter" in i.lower() or "description" in i.lower() or "name" in i.lower()]
+    fm_issues = [
+        i for i in issues
+        if "frontmatter" in i.lower() or "description" in i.lower() or "name" in i.lower()
+    ]
     fm_score = max(0, 10 - len(fm_issues) * 3)
 
     # 2. Section coverage (0-10)
@@ -154,7 +155,10 @@ def _score_documentation(
         ex_score = max(0, ex_score - 3)
 
     # 4. Specificity & clarity (0-10)
-    vague_count = sum(1 for ap in anti_patterns if ap.get("type") in ("template_artifact", "filler"))
+    vague_count = sum(
+        1 for ap in anti_patterns
+        if ap.get("type") in ("template_artifact", "filler")
+    )
     specific_score = max(0, 10 - vague_count * 2)
 
     # 5. Trigger clarity (0-10)
@@ -203,8 +207,6 @@ def _score_code(
         script_documentation (25%)
     """
     scripts = analysis.get("scripts", {})
-    bundle = analysis.get("bundle", {})
-
     total_count = scripts.get("total_count", 0)
     valid_count = scripts.get("valid_count", 0)
     script_list = scripts.get("results", [])
@@ -270,7 +272,6 @@ def _score_completeness(
         section_completeness (30%)
     """
     capabilities = test_data.get("capabilities", [])
-    sections = analysis.get("content", {}).get("sections", [])
 
     # 1. Capability coverage (0-10)
     cap_count = len(capabilities)
@@ -328,7 +329,6 @@ def _score_usability(
         edge_case_handling      (20%)
         progressive_disclosure  (20%)
     """
-    issues = analysis.get("issues", [])
 
     # 1. Trigger accuracy (0-10)
     was_executed = execution_result.get("executed", False)
@@ -361,7 +361,10 @@ def _score_usability(
         actionable = 2
 
     # 3. Edge case handling (0-10)
-    has_do_not = bool(re.search(r"(?:do not|avoid|warning|caution|limitation)", content, re.IGNORECASE)) if content else False
+    has_do_not = (
+        bool(re.search(r"(?:do not|avoid|warning|caution|limitation)", content, re.IGNORECASE))
+        if content else False
+    )
     edge_handling = 8 if has_do_not else 4
 
     # 4. Progressive disclosure (0-10)
