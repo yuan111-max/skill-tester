@@ -35,6 +35,10 @@ jobs:
           python -c "import scripts.analyze; import scripts.config; import scripts.evaluate; print('All imports OK')"
           echo "--- Test collection check ---"
           python -m pytest tests/ --collect-only -q 2>&1
+          echo "--- PWD / file check ---"
+          ls -la scripts/*.py
+          echo "--- Encoding check ---"
+          file tests/fixtures/bad_skill/SKILL.md tests/fixtures/good_skill/SKILL.md 2>/dev/null || echo "file command not available"
 
       - name: Lint with flake8
         run: |
@@ -45,8 +49,26 @@ jobs:
           mypy scripts/
 
       - name: Test with pytest
+        continue-on-error: true
+        id: pytest
         run: |
-          pytest tests/ -v --tb=long --cov=scripts --cov-report=term-missing --cov-fail-under=70
+          pytest tests/ -v --tb=long --cov=scripts --cov-report=term-missing --cov-fail-under=70 > pytest_output.txt 2>&1; echo "rc=$?" >> pytest_output.txt
+
+      - name: Show pytest output in summary
+        if: always()
+        run: |
+          { echo '### Pytest Output'; echo '```'; cat pytest_output.txt 2>/dev/null || echo '(no output captured)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check test result
+        if: always()
+        run: |
+          rc=$(grep -oP 'rc=\K\d+' pytest_output.txt 2>/dev/null || echo 1)
+          echo "Pytest exit code: $rc"
+          if [ "$rc" != "0" ]; then
+            echo "Tests failed with exit code $rc"
+            exit 1
+          fi
+          echo "All tests passed!"
 
       - name: Validate self-test
         run: |
