@@ -454,6 +454,6 @@ class TestAnalyzeBundle:
         config = {"analysis": {"script_extensions": [".py", ".sh"]}}
         result = _analyze_bundle(tmp_path, config)
         assert result["scripts_count"] == 1
-        paths = [ e["path"].replace("\\", "/") for e in result["scripts"] ]
+        paths = [e["path"].replace("\\", "/") for e in result["scripts"]]
         assert "scripts/main.py" in paths
         assert not any("__pycache__" in p for p in paths)
