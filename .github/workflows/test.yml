@@ -50,7 +50,20 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pytest tests/ -v --tb=short --cov=scripts --cov-report=term-missing --cov-fail-under=70
+          set +e
+          pytest tests/ -v --tb=short > pytest_out.txt 2>&1
+          rc=$?
+          head -60 pytest_out.txt
+          echo "--- end output ---"
+          if [ "$rc" != "0" ]; then
+            echo "::error::Pytest failed with exit code $rc"
+            # Show just FAILED/ERROR lines
+            echo "=== failed tests ==="
+            grep -E "FAILED|ERROR|assert|AssertionError|Error" pytest_out.txt | head -20
+            exit "$rc"
+          fi
+          set -e
+          pytest tests/ --cov=scripts --cov-report=term-missing --cov-fail-under=70
 
       - name: Validate self-test
         run: |
