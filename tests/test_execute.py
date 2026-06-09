@@ -18,7 +18,6 @@ from scripts.execute import (
 
 # ── Fixtures ───────────────────────────────────────────────────────────────
 
-
 def _make_test_data(overrides: Dict[str, Any] = None) -> Dict[str, Any]:
     """Build a standard test_data dict."""
     data = {
@@ -77,8 +76,7 @@ def _mock_subprocess(stdout: str = "", returncode: int = 0):
     return Mock(return_value=proc)
 
 
-# ── Tests ──────────────────────────────────────────────────────────────────
-
+# ── Tests ────────────────────────────────────────────────────────────────────
 
 class TestExecuteTests:
     """Tests for execute_tests()."""
@@ -253,7 +251,16 @@ class TestResolveClaude:
 
     def test_tries_windows_variants(self):
         """On Windows, also try .cmd and .exe variants."""
-        with patch("scripts.execute._which", side_effect=[None, "claude.cmd", None]):
+        # Mock _which to fail on first call (claude), succeed on second (claude.cmd)
+        call_count = [0]
+        
+        def mock_which(cmd):
+            call_count[0] += 1
+            if call_count[0] == 2:  # Second call
+                return "claude.cmd"
+            return None
+        
+        with patch("scripts.execute._which", side_effect=mock_which):
             result = _resolve_claude("claude")
             # Should find claude.cmd
             assert result == "claude.cmd"
