@@ -250,20 +250,25 @@ class TestResolveClaude:
             assert _resolve_claude("claude") == "claude"
 
     def test_tries_windows_variants(self):
-        """On Windows, also try .cmd and .exe variants."""
-        # Mock _which to fail on first call (claude), succeed on second (claude.cmd)
-        call_count = [0]
+        """On Windows, mock sys.platform and verify claude.cmd is tried."""
+        # Mock sys.platform to return "win32" so Windows variants are tried
+        with patch("scripts.execute.sys.platform", "win32"):
+            # Mock _which to fail on first two calls, succeed on third (claude.exe)
+            call_count = [0]
 
-        def mock_which(cmd):
-            call_count[0] += 1
-            if call_count[0] == 2:  # Second call
-                return "claude.cmd"
-            return None
+            def mock_which(cmd):
+                call_count[0] += 1
+                # First: claude -> None
+                # Second: claude.cmd -> None
+                # Third: claude.exe -> "claude.exe"
+                if call_count[0] == 3:
+                    return "claude.exe"
+                return None
 
-        with patch("scripts.execute._which", side_effect=mock_which):
-            result = _resolve_claude("claude")
-            # Should find claude.cmd
-            assert result == "claude.cmd"
+            with patch("scripts.execute._which", side_effect=mock_which):
+                result = _resolve_claude("claude")
+                # Should find claude.exe
+                assert result == "claude.exe"
 
 
 class TestWhich:
