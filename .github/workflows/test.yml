@@ -52,18 +52,18 @@ jobs:
       - name: Test with pytest
         run: |
           set +e
+          echo "=== Running all tests together ==="
+          python -m pytest tests/ -v --tb=long -x 2>&1 | tee /tmp/pytest_all_${{ matrix.python-version }}.txt || true
+          echo "=== Running per-file (fallback) ==="
           overall_rc=0
-          report_file="/tmp/pytest_report_${{ matrix.python-version }}.txt"
           for tf in tests/test_analyze.py tests/test_config.py tests/test_evaluate.py tests/test_execute.py tests/test_formatters.py tests/test_generate.py tests/test_integration.py tests/test_run_tests.py; do
-            echo "=== $tf ===" >> "$report_file"
-            echo "Running: pytest $tf -v --tb=long" >> "$report_file"
-            pytest "$tf" -v --tb=long 2>&1 | tee -a "$report_file"
+            echo "=== $tf ==="
+            pytest "$tf" -v --tb=long 2>&1 | tee -a /tmp/pytest_perfile_${{ matrix.python-version }}.txt
             rc=${PIPESTATUS[0]}
-            echo "Exit: $rc" >> "$report_file"
-            echo "" >> "$report_file"
+            echo "Exit: $rc"
             if [ "$rc" != "0" ]; then
               overall_rc=1
-              grep -E "FAILED|ERROR|FAIL|Error|AssertionError" "$report_file" | while read -r line; do
+              grep -E "FAILED|ERROR|FAIL|FAILURES|Error|AssertionError|assert" /tmp/pytest_perfile_${{ matrix.python-version }}.txt | while read -r line; do
                 echo "::error file=$tf,title=Test Failure::$line"
               done
             fi
@@ -75,8 +75,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-report-${{ matrix.python-version }}
-          path: /tmp/pytest_report_${{ matrix.python-version }}.txt
+          name: pytest-reports-${{ matrix.python-version }}
+          path: /tmp/pytest_*.txt
 
       - name: Validate self-test
         run: |
