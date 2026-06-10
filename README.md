@@ -1,8 +1,8 @@
+<p align="right">
+  <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/简体中文-555?style=flat-square" alt="简体中文"></a>
+</p>
+
 <div align="center">
-
-[![🇨🇳 简体中文](https://img.shields.io/badge/🇨🇳-简体中文-red?style=for-the-badge)](README.zh-CN.md)
-
-<br>
 
 # 🧪 Skill-Tester
 

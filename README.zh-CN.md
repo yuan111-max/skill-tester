@@ -1,8 +1,8 @@
+<p align="right">
+  <a href="README.md"><img src="https://img.shields.io/badge/English-555?style=flat-square" alt="English"></a>
+</p>
+
 <div align="center">
-
-[![🇬🇧 English](https://img.shields.io/badge/🇬🇧-English-blue?style=for-the-badge)](README.md)
-
-<br>
 
 # 🧪 Skill-Tester
 
