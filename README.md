@@ -1,147 +1,207 @@
-# skill-tester
+<div align="center">
 
-**4 阶段流水线 + 4 维评分，用于 Claude Code 技能评估。**
+# 🧪 Skill-Tester
 
-对任意 Claude Code 技能进行结构有效性、内容质量、配套完整性和触发准确性的全面分析。在将技能部署到生产环境之前，用可量化的指标取代主观判断。
+**4-Stage Pipeline · 4-Dimension Scoring · Quantified Skill Quality**
+
+[![CI](https://img.shields.io/github/actions/workflow/status/topprismdata/skill-tester/.github/workflows/test.yml?branch=main&label=CI&logo=github)](https://github.com/topprismdata/skill-tester/actions)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Code Style](https://img.shields.io/badge/code%20style-flake8-brightgreen)](https://github.com/PyCQA/flake8)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?logo=github)](https://github.com/topprismdata/skill-tester/pulls)
+
+**Stop guessing — start measuring.**
+
+Replace subjective skill reviews with rigorous, automated evaluation across 4 dimensions. Ship skills to production with confidence.
+
+</div>
+
+---
+
+## ✨ At a Glance
 
 ```text
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  阶段 1     │ →  │  阶段 2     │ →  │  阶段 3     │ →  │  阶段 4     │
-│  分析       │    │  生成       │    │  执行       │    │  评估       │
-│  ─────────  │    │  ─────────  │    │  ─────────  │    │  ─────────  │
-│  SKILL.md   │    │  触发条件   │    │  Claude CLI │    │  4 维评分   │
-│  配套文件   │    │  能力       │    │  PASS/FAIL  │    │  等级分类   │
-│  反模式     │    │  边界情况   │    │  计时       │    │  报告       │
-│  检测       │    │             │    │             │    │             │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+╭──────────────────────────────────────────────────────────╮
+│                                                          │
+│   📂 my-skill/                                           │
+│   ├── SKILL.md                                           │
+│   ├── scripts/                                           │
+│   └── references/                                        │
+│                                                          │
+│   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   │
+│   │  Analyze     │ → │  Generate   │ → │  Execute    │   │
+│   │  ─────────   │   │  ─────────  │   │  ─────────  │   │
+│   │  structure   │   │  20+ tests  │   │  real       │   │
+│   │  metadata    │   │  edge cases │   │  Claude CLI │   │
+│   │  anti-       │   │  capabilities│  │  PASS/FAIL  │   │
+│   │  patterns    │   │            │   │             │   │
+│   └──────┬───────┘   └──────┬──────┘   └──────┬──────┘   │
+│          │                  │                  │          │
+│          └──────────────────┴──────────────────┘          │
+│                                                           │
+│                                       ┌──────────────┐   │
+│                                   ↓   │  Evaluate    │   │
+│                                       │  4D Score    │   │
+│                                       │  Tier Report │   │
+│                                       └──────────────┘   │
+│                                                           │
+│   ════════════════════════════════════════════════════    │
+│   RESULT:  POWERFUL  ████████░░  8.7 / 10               │
+│   ════════════════════════════════════════════════════    │
+│                                                          │
+╰──────────────────────────────────────────────────────────╯
 ```
 
 ---
 
-## 功能特性
-
-- **🔍 深度结构分析** — YAML 前置元数据验证、递归扫描配套文件、内容质量指标
-- **📋 自动测试生成** — 从 SKILL.md 中提取触发条件、能力和边界情况
-- **⚡ 真实执行** — 通过 `claude` CLI 运行测试（使用 `--execute`），测量实际技能激活效果
-- **📊 4 维评分** — 可配置的权重、子分数和等级阈值
-- **🔎 反模式检测** — 自动捕获 TODO 标记、模板残留、占位符内容和模糊表述
-- **📐 跨技能对比** — 使用 `--output table` 将多个技能并排对比
-- **⚙️ 完全可配置** — 所有阈值、权重和规则均集中在单个 YAML 配置文件中
-
----
-
-## 快速开始
+## 🚀 Quick Start
 
 ```bash
-# 1. 安装
+# 1. Install
 git clone https://github.com/topprismdata/skill-tester.git
 cd skill-tester
 pip install -r requirements.txt
 
-# 2. 运行基础分析（不执行测试）
+# 2. Analyze a skill (no Claude CLI needed)
 python scripts/run_tests.py path/to/my-skill
 
-# 3. 完整流水线（含实时代理测试）
+# 3. Full pipeline with live execution
 python scripts/run_tests.py path/to/my-skill --execute
 
-# 4. 对比两个技能
+# 4. Compare multiple skills side-by-side
 python scripts/run_tests.py path/to/skill-a path/to/skill-b --output table
 
-# 5. JSON 输出（适用于 CI / 自动化）
+# 5. JSON output (CI-friendly)
 python scripts/run_tests.py path/to/my-skill --output json
 ```
 
 ---
 
-## 使用方法
+## 📊 The 4D Scoring System
+
+Every skill is evaluated across **4 equally-weighted dimensions** (25% each), producing a **0–10 final score** with actionable tier classifications.
 
 ```text
-python scripts/run_tests.py <skill-dirs...> [选项]
+                  Documentation
+                  ◄──────────►
+               ▲                ▲
+               │                │
+         Code  │     ★          │  Completeness
+         ◄─────┤   8.7/10      ├─────►
+               │   POWERFUL    │
+               ▼                ▼
+               ◄──────────►
+                  Usability
+```
 
-位置参数：
-  skill-dirs              技能目录路径（一个或多个）
+| Dimension | Weight | What It Measures |
+|-----------|:------:|------------------|
+| 📝 **Documentation** | 25% | SKILL.md clarity, structure, examples, trigger clarity |
+| 💻 **Code** | 25% | Script correctness, error handling, docstrings |
+| 📋 **Completeness** | 25% | Coverage of all declared capabilities |
+| 🎯 **Usability** | 25% | Trigger reliability, instruction actionability |
 
-选项：
-  --output / -o           输出格式：summary（默认）、json、table
-  --execute / -e          通过 Claude CLI 启用真实测试执行
-  --config / -c           自定义 YAML 配置文件路径
-  --quiet / -q            隐藏阶段进度输出
-  --no-color              禁用输出中的 ANSI 颜色
-  --version / -V          显示版本号并退出
+### 🏆 Tier Thresholds
+
+| Score | Tier | Action |
+|:-----:|:----:|--------|
+| **≥ 8.5** | 🔥 **POWERFUL** | Deploy immediately — benchmark quality |
+| **≥ 7.0** | ✅ **STANDARD** | Good to deploy — minor gaps acceptable |
+| **≥ 5.0** | ⚠️ **BASIC** | Functional — needs improvement |
+| **< 5.0** | ❌ **REJECT** | Requires major rewrites |
+
+### 🧩 Sub-Score Detail
+
+Each dimension breaks down into weighted sub-scores (configurable in [`config/default.yaml`](config/default.yaml)):
+
+#### 📝 Documentation
+```
+frontmatter_validity    15%   10 - 3 × issues
+section_coverage        25%   ≥6 sections → 10, ≥4 → 8, ...
+example_density         20%   ≥6 examples → 10, has TODO → -3
+specificity_clarity     25%   10 - 2 × anti-patterns
+trigger_clarity         15%   ≥5 phrases → 10, ≥3 → 8, ...
+```
+
+#### 💻 Code
+```
+script_presence         10%   ≥3 scripts → 10, none → 2
+syntactic_validity      35%   (valid / total) × 10  |  baseline: 5 if no scripts
+error_handling          30%   2 + (I/O covered / I/O total) × 8  |  8 if pure-logic
+script_documentation    25%   (documented / total) × 10  |  baseline: 5 if no scripts
+```
+
+> **🔑 Key insight:** Error handling only counts **I/O scripts** (ones that do file/network/shell operations) — pure-logic scripts don't penalize the skill. No-script skills get a neutral baseline of 5 on three sub-scores.
+
+#### 📋 Completeness
+```
+capability_coverage     40%   ≥8 capabilities → 10, ≥5 → 8, ...
+edge_case_coverage      30%   min(10, edge_cases × 2 + non_triggers)
+section_completeness    30%   (1 - missing / required) × 10
+```
+
+#### 🎯 Usability
+```
+trigger_accuracy        30%   (passed / total) × 10  |  proxy: min(10, phrases × 2)
+instruction_actionability 30%  ≥15 bullets → 10, ≥10 → 8, ...
+edge_case_handling      20%   8 if do-not/avoid/limitation sections, else 4
+progressive_disclosure  20%   10 if H1 + ≥4 H2 + ≥2 H3, ...
 ```
 
 ---
 
-## 评分概览
+## 🧪 Usage
 
-| 维度         | 权重 | 衡量内容                               |
-|-------------|------|----------------------------------------|
-| 文档        | 25%  | SKILL.md 的清晰度、结构、示例、触发条件  |
-| 代码        | 25%  | 配套脚本的正确性、错误处理               |
-| 完整性      | 25%  | 所有声明能力的覆盖情况                   |
-| 易用性      | 25%  | 触发的可靠性、指令的可操作性              |
+```text
+python scripts/run_tests.py <skill-dirs...> [options]
 
-每个维度由 **子分数**（如前置元数据有效性、章节覆盖率、示例密度）计算得出，定义在 `config/default.yaml` 中。
+Positional Arguments:
+  skill-dirs              One or more skill directory paths
 
-**最终分数**（0–10 分）→ **等级**：
+Options:
+  -o, --output FORMAT     Output: summary (default), json, table
+  -e, --execute           Enable live execution via Claude CLI
+  -c, --config PATH       Custom YAML config file
+  -q, --quiet             Suppress stage progress output
+      --no-color          Disable ANSI colors in output
+  -V, --version           Show version and exit
+```
 
-| 分数   | 等级      | 建议行动                               |
-|--------|----------|----------------------------------------|
-| ≥ 8.5  | POWERFUL | 可立即部署，设为标杆                     |
-| ≥ 7.0  | STANDARD | 可以部署，建议修补次要不足                |
-| ≥ 5.0  | BASIC    | 可用，但需要改进                        |
-| < 5.0  | REJECT   | 需要重大重写                            |
+### Examples
 
----
+```bash
+# Minimal — structure-only analysis
+python scripts/run_tests.py ./skills/json-validator
 
-## 各阶段详解
+# Full — analyze, generate tests, execute, score
+python scripts/run_tests.py ./skills/json-validator --execute
 
-### 阶段 1：分析
-- 解析 YAML 前置元数据（`name`、`description`、各种校验检查）
-- 递归扫描 `scripts/`、`references/`、`assets/` 目录
-- 内容质量指标：章节数量、示例密度、行数统计
-- 反模式扫描：TODO 标记、模板残留、占位符语言、模糊引用
-- Python 脚本语法验证（通过 `py_compile`）
+# Compare — side-by-side table, no execution
+python scripts/run_tests.py skills/* --output table
 
-### 阶段 2：测试生成
-- **触发测试**：提取所有"何时使用"条款作为测试提示
-- **非触发测试**：生成*不应*激活该技能的提示
-- **边界情况**：提取"不要"、"限制"、"注意事项"等章节作为测试提示
-- **能力测试**：章节标题和面向操作的要点列表
-
-### 阶段 3：执行
-- 通过 `claude --non-interactive --print` 运行每个测试提示
-- 使用启发式方法检测响应中的技能激活情况
-- 根据预期的触发行为对每个测试进行 PASS/FAIL 评分
-- 当 CLI 不可用时优雅降级，并给出明确提示信息
-
-### 阶段 4：评估
-- 可配置的维度权重（默认各 25%）
-- 每个维度的子分数聚合
-- 最终分数 → 等级映射
-- 各维度详情，便于调试
+# CI pipeline — JSON output, quiet mode
+python scripts/run_tests.py ./skills/json-validator --output json --quiet
+```
 
 ---
 
-## 项目结构
+## 🏗️ Project Structure
 
 ```
 skill-tester/
-├── config/
-│   └── default.yaml            # 所有阈值、权重和规则
-├── scripts/
-│   ├── __init__.py
-│   ├── run_tests.py             # CLI 入口
-│   ├── config.py                # 配置加载器
-│   ├── utils.py                 # 共享工具函数
-│   ├── analyze.py               # 阶段 1
-│   ├── generate.py              # 阶段 2
-│   ├── execute.py               # 阶段 3
-│   ├── evaluate.py              # 阶段 4
-│   └── formatters.py            # 输出：json、table、summary
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py              # 共享测试夹具
+├── 📁 config/
+│   └── 📄 default.yaml            ← All thresholds, weights & rules
+├── 📁 scripts/
+│   ├── run_tests.py               ← CLI entry point
+│   ├── config.py                  ← Config loader
+│   ├── utils.py                   ← Shared utilities
+│   ├── analyze.py                 ← Stage 1: Deep analysis
+│   ├── generate.py                ← Stage 2: Test generation
+│   ├── execute.py                 ← Stage 3: Real execution
+│   ├── evaluate.py                ← Stage 4: 4D scoring
+│   └── formatters.py              ← Output: json / table / summary
+├── 📁 tests/
+│   ├── conftest.py                ← Shared fixtures
 │   ├── test_analyze.py
 │   ├── test_generate.py
 │   ├── test_execute.py
@@ -150,67 +210,101 @@ skill-tester/
 │   ├── test_formatters.py
 │   ├── test_run_tests.py
 │   ├── test_integration.py
-│   └── fixtures/
-│       ├── good_skill/
-│       ├── bad_skill/
-│       └── full_skill/          # .py、.sh、.js + 参考 + 资源
-├── references/
-│   ├── scoring_guide.md
-│   └── trigger_keywords.md
-├── .github/workflows/test.yml   # CI（flake8 + mypy + pytest + 自测）
-├── .flake8                      # 代码检查配置
-├── mypy.ini                     # 类型检查配置
-├── requirements.txt
-├── pyproject.toml
-└── README.md
+│   └── 📁 fixtures/
+│       ├── good_skill/            ← Reference: well-formed skill
+│       ├── bad_skill/             ← Reference: poorly-formed skill
+│       └── full_skill/            ← E2E: .py, .sh, .js + refs + assets
+├── 📁 references/
+│   ├── scoring_guide.md           ← Detailed rubric
+│   └── trigger_keywords.md        ← Trigger pattern reference
+├── 📁 .github/workflows/
+│   └── test.yml                   ← CI: flake8 + mypy + pytest + self-test
+├── 📄 .flake8
+├── 📄 mypy.ini
+├── 📄 requirements.txt
+├── 📄 pyproject.toml
+└── 📄 README.md
 ```
 
 ---
 
-## 配置
+## ⚙️ Configuration
 
-所有配置集中在 [`config/default.yaml`](config/default.yaml) 中。可通过以下方式覆盖任意配置：
+All thresholds live in [`config/default.yaml`](config/default.yaml). Override any setting without touching code:
 
-1. 创建 `config/local.yaml`（自动加载，已被 git 忽略）
-2. 传入 `--config path/to/custom.yaml`
+| Method | File | Persistence |
+|--------|------|:-----------:|
+| Local override | `config/local.yaml` | ✅ Git-ignored |
+| Custom path | `--config path/to/custom.yaml` | ✅ Anywhere |
 
-### 可配置项
+### What You Can Configure
 
-- **评分**：维度权重、子分数定义、等级阈值
-- **分析**：最小描述长度、必需章节、脚本扩展名
-- **执行**：Claude CLI 命令、超时时间、最大测试数、温度参数
-- **反模式**：匹配模式、严重级别、提示消息
-- **输出**：格式、颜色、预览长度
+| Category | Examples |
+|----------|----------|
+| **Scoring** | Dimension weights, sub-score definitions, tier thresholds |
+| **Analysis** | Min description length, required sections, script extensions |
+| **Execution** | Claude CLI command, timeout, max tests, temperature |
+| **Anti-Patterns** | Regex patterns, severity levels, custom messages |
+| **Output** | Format, color, preview length |
 
 ---
 
-## 开发
+## 🔬 CI Integration
+
+The project includes a **batteries-included CI workflow** (`.github/workflows/test.yml`) that runs on every push:
+
+```yaml
+# What CI checks:
+✅ flake8      — Code style & linting
+✅ mypy        — Static type checking
+✅ pytest      — Full test suite (220+ tests)
+✅ Self-test   — Tests skill-tester against itself → POWERFUL ✓
+```
+
+Add to **your** CI pipeline:
+```bash
+python scripts/run_tests.py ./my-skill --output json --quiet
+```
+
+---
+
+## 🧑‍💻 Development
 
 ```bash
-# 安装开发依赖
+# Install dev dependencies
 pip install -r requirements.txt pytest pytest-cov
 
-# 运行测试
+# Run the test suite
 pytest tests/ -v
 
-# 带覆盖率
+# With coverage
 pytest tests/ --cov=scripts --cov-report=term-missing
 
-# 自测（用 skill-tester 测试自身）
+# Self-test (meta! — tests skill-tester with itself)
 python scripts/run_tests.py .
 ```
 
----
-
-## 参考致谢
-
-- 基于 [cc-plugin-eval](https://github.com/sjnims/cc-plugin-eval)（4 阶段流水线）
-- 灵感来源于 [claude-skills skill-tester](https://github.com/alirezarezvani/claude-skills)（4 维评分体系）
-- 评估方法参考 [Anthropic skill-creator](https://github.com/anthropics/skills)（评估/基准模式）
-- 以及 SkillCompass、PluginEval、Caliper 等社区工具的设计思路
+> **Current self-test result:** 🔥 **POWERFUL** — the project scores ≥8.5/10 on its own rubric.
 
 ---
 
-## 许可证
+## 🙏 Acknowledgements
 
-MIT
+This project builds on ideas from the Claude Code skills ecosystem:
+
+| Project | Influence |
+|---------|-----------|
+| [cc-plugin-eval](https://github.com/sjnims/cc-plugin-eval) | 4-stage pipeline architecture |
+| [claude-skills skill-tester](https://github.com/alirezarezvani/claude-skills) | 4-dimension scoring system |
+| [Anthropic skill-creator](https://github.com/anthropics/skills) | Evaluation & benchmarking patterns |
+| SkillCompass / PluginEval / Caliper | Community design insights |
+
+---
+
+<div align="center">
+
+**Made with 🧪 for the Claude Code skills community**
+
+`MIT License` · Contributions welcome — open an [issue](https://github.com/topprismdata/skill-tester/issues) or [PR](https://github.com/topprismdata/skill-tester/pulls)
+
+</div>
