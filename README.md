@@ -1,9 +1,6 @@
 <div align="center">
-
 # 🧪 Skill-Tester
-
 **4-Stage Pipeline · 4-Dimension Scoring · Quantified Skill Quality**
-
 [![简体中文](https://img.shields.io/badge/简体中文-555?style=flat-square)](README.zh-CN.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/topprismdata/skill-tester/.github/workflows/test.yml?branch=main&label=CI&logo=github)](https://github.com/topprismdata/skill-tester/actions)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)

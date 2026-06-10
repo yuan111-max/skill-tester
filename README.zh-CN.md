@@ -1,9 +1,6 @@
 <div align="center">
-
 # 🧪 Skill-Tester
-
 **4 阶段流水线 · 4 维评分 · 量化技能质量**
-
 [![English](https://img.shields.io/badge/English-555?style=flat-square)](README.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/topprismdata/skill-tester/.github/workflows/test.yml?branch=main&label=CI&logo=github)](https://github.com/topprismdata/skill-tester/actions)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
