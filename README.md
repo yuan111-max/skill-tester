@@ -36,21 +36,10 @@
 | **4. Evaluate** | Score across 4 equally-weighted dimensions, produce tier with actionable guidance | Score + tier report |
 
 ```text
-╭──────────────────────────────────────────────────────────╮
-│                       Pipeline Flow                      │
-├────────────┬────────────┬────────────┬───────────────────┤
-│   Analyze  │  Generate  │  Execute   │    Evaluate       │
-│  ────────  │ ─────────  │ ─────────  │  ─────────────    │
-│ front-     │ 20+ tests  │ Claude CLI │  Documentation    │
-│ matter     │ trigger &  │ real       │  (25%)            │
-│ sections   │ non-       │ execution  │  Code (25%)       │
-│ anti-      │ trigger    │ per test   │  Completeness     │
-│ patterns   │ edge cases │ PASS/FAIL  │  (25%)            │
-│ triggers   │ capabili-  │ result     │  Usability (25%)  │
-│            │ ties       │            │                   │
-├────────────┴────────────┴────────────┴───────────────────┤
-│                    ★  8.7 / 10  POWERFUL                  │
-╰──────────────────────────────────────────────────────────╯
+Analyze  ──→  Generate  ──→  Execute  ──→  Evaluate
+                                                ↓
+                                         ★ 8.7 / 10
+                                         POWERFUL
 ```
 
 ---
@@ -79,21 +68,15 @@ python scripts/run_tests.py path/to/skill-a path/to/skill-b --output table
 
 Every skill is evaluated across **4 equally-weighted dimensions** (25% each), producing a **0–10 final score** with actionable tier guidance.
 
-```text
-╭────────────────────┬────────────────────╮
-│ 📝 Documentation   │ 💻 Code            │
-│ Weight: 25%        │ Weight: 25%        │
-│ Clarity, structure,│ Correctness, error │
-│ examples, triggers │ handling, docs     │
-├────────────────────┼────────────────────┤
-│ 📋 Completeness    │ 🎯 Usability       │
-│ Weight: 25%        │ Weight: 25%        │
-│ Capability coverage│ Trigger accuracy,  │
-│ edge case coverage │ instruction action │
-├────────────────────┴────────────────────┤
-│           ★  8.7 / 10  POWERFUL          │
-╰─────────────────────────────────────────╯
-```
+| 📝 **Documentation** (25%) | 💻 **Code** (25%) |
+|:---------------------------|:------------------|
+| Clarity, structure, examples, triggers | Correctness, error handling, docs |
+
+| 📋 **Completeness** (25%) | 🎯 **Usability** (25%) |
+|:---------------------------|:----------------------|
+| Capability coverage, edge case coverage | Trigger accuracy, instruction action |
+
+> **★  8.7 / 10  →  🔥 POWERFUL**
 
 | Dimension | Weight | What It Measures |
 |-----------|:------:|------------------|
