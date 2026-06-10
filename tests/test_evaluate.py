@@ -18,9 +18,7 @@ class TestEvaluate:
         """A well-formed skill should score >= 7.0 (STANDARD or better)."""
         analysis = analyze_skill(good_skill_dir, minimal_config)
         assert "error" not in analysis
-        # Provide _body so Usability scoring doesn't warn
-        if "_body" not in analysis:
-            analysis["_body"] = (good_skill_dir / "SKILL.md").read_text(encoding="utf-8")
+        # body is returned natively by analyze_skill() — no _body injection needed
 
         test_data = generate_tests(good_skill_dir, analysis, minimal_config)
 
@@ -44,8 +42,6 @@ class TestEvaluate:
         """A malformed skill should score < 7.0."""
         analysis = analyze_skill(bad_skill_dir, minimal_config)
         assert "error" not in analysis
-        if "_body" not in analysis:
-            analysis["_body"] = (bad_skill_dir / "SKILL.md").read_text(encoding="utf-8")
 
         test_data = generate_tests(bad_skill_dir, analysis, minimal_config)
         execution_result = {
@@ -63,8 +59,6 @@ class TestEvaluate:
     def test_execution_improves_score(self, good_skill_dir: Path, minimal_config: Dict[str, Any]):
         """Simulated execution results should be reflected in Usability score."""
         analysis = analyze_skill(good_skill_dir, minimal_config)
-        if "_body" not in analysis:
-            analysis["_body"] = (good_skill_dir / "SKILL.md").read_text(encoding="utf-8")
         test_data = generate_tests(good_skill_dir, analysis, minimal_config)
 
         # Simulate perfect execution
@@ -170,14 +164,26 @@ class TestEvaluate:
 class TestReadSkillBody:
     """Tests for _read_skill_body()."""
 
-    def test_returns_body_when_present(self):
-        """When _body is set, it should be returned."""
+    def test_returns_body_from_new_key(self):
+        """The new 'body' key should be preferred."""
+        from scripts.evaluate import _read_skill_body
+        analysis = {"body": "## Section\nContent here"}
+        assert _read_skill_body(analysis) == "## Section\nContent here"
+
+    def test_body_preferred_over_old_body(self):
+        """When both keys exist, 'body' wins over '_body'."""
+        from scripts.evaluate import _read_skill_body
+        analysis = {"body": "new body", "_body": "old body"}
+        assert _read_skill_body(analysis) == "new body"
+
+    def test_fallback_to_old_body(self):
+        """The old '_body' key should still work as fallback."""
         from scripts.evaluate import _read_skill_body
         analysis = {"_body": "## Section\nContent here"}
         assert _read_skill_body(analysis) == "## Section\nContent here"
 
     def test_returns_empty_when_missing(self):
-        """When _body is absent, empty string should be returned."""
+        """When both keys are absent, empty string should be returned."""
         from scripts.evaluate import _read_skill_body
         analysis = {"name": "test"}
         assert _read_skill_body(analysis) == ""
@@ -186,8 +192,8 @@ class TestReadSkillBody:
 class TestScoreCodeNoScripts:
     """Tests for _score_code() when a skill has no scripts."""
 
-    def test_no_scripts_scores_zero_for_validity(self):
-        """When no scripts exist, syntactic_validity should be 0 (not 10)."""
+    def test_no_scripts_scores_baseline_five(self):
+        """When no scripts exist, sub-scores should get a baseline of 5."""
         from scripts.evaluate import _score_code
 
         analysis = {
@@ -209,10 +215,12 @@ class TestScoreCodeNoScripts:
             },
         }
         score, detail = _score_code(analysis, {}, {}, config)
-        assert detail["syntactic_validity"] == 0, "No scripts should mean 0 validity"
-        assert detail["error_handling"] == 0, "No scripts should mean 0 error handling"
-        assert detail["script_documentation"] == 0, "No scripts should mean 0 documentation"
-        assert score < 5.0, f"No-script skill should not score well, got {score}"
+        # No-script baseline is 5 (not 0) — pure-doc skills shouldn't be gutted
+        assert detail["syntactic_validity"] == 5
+        assert detail["error_handling"] == 5
+        assert detail["script_documentation"] == 5
+        # presence is still 2 (signal: no scripts), so total ≈ 4.7
+        assert score < 5.0, f"No-script skill should get ~4.7, got {score}"
 
     def test_has_scripts_scores_positively(self):
         """When scripts exist, code should score based on their quality."""
@@ -223,8 +231,8 @@ class TestScoreCodeNoScripts:
                 "total_count": 2,
                 "valid_count": 2,
                 "results": [
-                    {"path": "scripts/a.py", "language": "python", "syntax_valid": True, "has_docstring": True, "has_try_except": True},
-                    {"path": "scripts/b.py", "language": "python", "syntax_valid": True, "has_docstring": True, "has_try_except": True},
+                    {"path": "scripts/a.py", "language": "python", "syntax_valid": True, "has_docstring": True, "has_try_except": True, "needs_error_handling": True},
+                    {"path": "scripts/b.py", "language": "python", "syntax_valid": True, "has_docstring": True, "has_try_except": True, "needs_error_handling": True},
                 ],
             },
             "bundle": {"scripts_count": 2},

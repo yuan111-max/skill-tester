@@ -91,9 +91,16 @@ _INLINE_CODE_RE = re.compile(r"`[^`]+`")
 
 
 def _strip_code_blocks(text: str) -> str:
-    """Remove fenced code blocks and inline backtick code from *text*."""
-    text = _FENCED_CODE_BLOCK_RE.sub("", text)
-    text = _INLINE_CODE_RE.sub("", text)
+    """Remove fenced code blocks and inline backtick code from *text*.
+
+    Fenced blocks are replaced with a paragraph separator to preserve
+    structural boundaries.  Inline backtick phrases are replaced with a
+    single space to prevent adjacent words from merging.  Resulting
+    runs of multiple spaces are collapsed to single spaces.
+    """
+    text = _FENCED_CODE_BLOCK_RE.sub("\n\n", text)
+    text = _INLINE_CODE_RE.sub(" ", text)
+    text = re.sub(r" {2,}", " ", text)
     return text
 
 
@@ -120,6 +127,9 @@ def _is_quality_prompt(phrase: str) -> bool:
     # Must start with an uppercase letter or digit (readable prompt start)
     if not re.match(r"^[A-Z0-9]", phrase):
         return False
+    # Multi-line fragment (likely a regex over-capture across line boundaries)
+    if "\n" in phrase:
+        return False
     return True
 
 
@@ -145,14 +155,18 @@ def _generate_trigger_tests(
             })
 
     # 2. From "When to Use" / usage sections
+    # Use original content (not clean_content) so inline code refs like
+    # `/skill-tester <dir>` are preserved as trigger context.
     for match in re.finditer(
         r"(?:##\s+(?:When to Use|Usage|Triggers?).*?\n)(.*?)(?=\n##\s|\Z)",
-        clean_content, re.IGNORECASE | re.DOTALL,
+        content, re.IGNORECASE | re.DOTALL,
     ):
         bullets = re.findall(r"^\s*[-*]\s+(.+)$", match.group(1), re.MULTILINE)
         for b in bullets:
             b = b.strip().rstrip(".")
-            if len(b) > 10 and not any(t["prompt"] == b for t in tests):
+            if (len(b) > 10
+                    and _is_quality_prompt(b)
+                    and not any(t["prompt"] == b for t in tests)):
                 tests.append({
                     "type": "trigger",
                     "prompt": b,
@@ -277,8 +291,13 @@ def _extract_capabilities(analysis: Dict[str, Any], content: str) -> List[Dict[s
 # ── Edge cases ──────────────────────────────────────────────────────────────
 
 def _generate_edge_cases(content: str, analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Generate edge-case and error-path test prompts."""
+    """Generate edge-case and error-path test prompts.
+
+    Strips code blocks from content before scanning to avoid capturing
+    code examples and descriptive feature text as edge cases.
+    """
     edge_cases: List[Dict[str, Any]] = []
+    clean_body = _strip_code_blocks(content)
 
     # Find "do not", "avoid", "warning", "caution", "limitation" sections
     for match in re.finditer(
@@ -286,12 +305,12 @@ def _generate_edge_cases(content: str, analysis: Dict[str, Any]) -> List[Dict[st
             r"(?:##\s+(?:Limitations?|Caveats?|Warnings?|Do Not|Avoid|Troubleshooting).*?\n)"
             r"(.*?)(?=\n##\s|\Z)"
         ),
-        content, re.IGNORECASE | re.DOTALL,
+        clean_body, re.IGNORECASE | re.DOTALL,
     ):
         bullets = re.findall(r"^\s*[-*]\s+(.+)$", match.group(1), re.MULTILINE)
         for b in bullets:
             b = b.strip().rstrip(".")
-            if len(b) > 10:
+            if len(b) > 10 and _is_quality_prompt(b):
                 edge_cases.append({
                     "type": "edge_case",
                     "prompt": b,
@@ -299,13 +318,15 @@ def _generate_edge_cases(content: str, analysis: Dict[str, Any]) -> List[Dict[st
                     "source": "constraint_section",
                 })
 
-    # Find explicit "do not" / "avoid" sentences in body
+    # Find explicit "do not" / "avoid" sentences in body (on clean content)
     for match in re.finditer(
         r"\b(?:do not|don't|avoid|never|must not)\b[^.]*\.",
-        content, re.IGNORECASE,
+        clean_body, re.IGNORECASE,
     ):
         sentence = match.group(0).strip()
-        if 20 < len(sentence) < 200 and not any(e["prompt"] == sentence for e in edge_cases):
+        if (20 < len(sentence) < 200
+                and _is_quality_prompt(sentence)
+                and not any(e["prompt"] == sentence for e in edge_cases)):
             edge_cases.append({
                 "type": "edge_case",
                 "prompt": sentence,

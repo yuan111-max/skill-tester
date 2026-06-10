@@ -87,6 +87,17 @@ class TestAnalyzeSkill:
         assert "python" in languages
         assert "shell" in languages
         assert "js" in languages
+        # Python scripts should have needs_error_handling flag
+        python_scripts = [r for r in scripts["results"] if r["language"] == "python"]
+        for ps in python_scripts:
+            assert "needs_error_handling" in ps
+
+    def test_returns_body(self, good_skill_dir: Path, minimal_config: Dict[str, Any]):
+        """analyze_skill should return the SKILL.md body."""
+        result = analyze_skill(good_skill_dir, minimal_config)
+        assert "body" in result
+        assert len(result["body"]) > 0
+        assert "## " in result["body"]  # has markdown sections
 
     def test_trigger_analysis(self, good_skill_dir: Path, minimal_config: Dict[str, Any]):
         """Trigger analysis should extract trigger phrases."""
@@ -196,6 +207,30 @@ class TestCheckPythonDocstring:
         from scripts.analyze import _check_python_docstring
         code = "x = 1\n'''not a docstring'''\n"
         assert _check_python_docstring(code) is False
+
+
+class TestNeedsErrorHandling:
+    """Tests for _needs_error_handling()."""
+
+    def test_detects_file_open(self):
+        from scripts.analyze import _needs_error_handling
+        assert _needs_error_handling("with open('file.txt') as f:")
+
+    def test_detects_subprocess(self):
+        from scripts.analyze import _needs_error_handling
+        assert _needs_error_handling("import subprocess\nsubprocess.run(['ls'])")
+
+    def test_detects_json_load(self):
+        from scripts.analyze import _needs_error_handling
+        assert _needs_error_handling("data = json.load(f)")
+
+    def test_skips_pure_logic(self):
+        from scripts.analyze import _needs_error_handling
+        assert not _needs_error_handling("x = 1\ny = 2\nreturn x + y")
+
+    def test_empty_content(self):
+        from scripts.analyze import _needs_error_handling
+        assert not _needs_error_handling("")
 
 
 class TestValidateScripts:

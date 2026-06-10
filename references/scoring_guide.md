@@ -48,9 +48,20 @@ Measures quality of bundled scripts — correctness, error handling, determinism
 | Sub-score | Weight | Calculation |
 |-----------|--------|-------------|
 | script_presence | 10% | 10 if ≥3 scripts; 7 if ≥1; 2 if none |
-| syntactic_validity | 35% | (valid_count / total_count) × 10. 0 if no scripts |
-| error_handling | 30% | 2 baseline + (ratio with try/except) × 8. 0 if no scripts |
-| script_documentation | 25% | (scripts_with_docstring_or_shebang / total) × 10. 0 if no scripts |
+| syntactic_validity | 35% | (valid_count / total_count) × 10. 5 baseline if no scripts |
+| error_handling | 30% | 2 + (I/O scripts with try/except / I/O scripts) × 8. 8 if all pure-logic scripts. 5 baseline if no scripts |
+| script_documentation | 25% | (scripts_with_docstring_or_shebang / total) × 10. 5 baseline if no scripts |
+
+### Key Distinctions
+
+- **I/O vs pure-logic scripts**: Scripts performing file I/O, network calls,
+  or subprocess execution are flagged as `needs_error_handling`. Only these
+  scripts count toward the error_handling denominator — pure-logic scripts
+  (config readers, formatters, pure functions) do not penalise the skill.
+- **No-script baseline**: Skills without bundled scripts receive a neutral
+  baseline of 5 for validity, error_handling, and documentation, so
+  documentation-only skills are not unreasonably penalised. The
+  script_presence sub-score still signals the absence (2/10).
 
 ### Checklist
 - [ ] `python3 -m py_compile` passes for all `.py` scripts

@@ -58,7 +58,7 @@ def execute_tests(
             f"CLI '{exec_cfg.get('claude_command', 'claude')}' not found in PATH.",
         )
 
-    return _run_tests(test_data, claude_cmd, exec_cfg, quiet=quiet)
+    return _run_tests(test_data, claude_cmd, exec_cfg, analysis, quiet=quiet)
 
 
 # ── Internal execution helpers ───────────────────────────────────────────
@@ -88,6 +88,7 @@ def _run_tests(
     test_data: Dict[str, Any],
     claude_cmd: str,
     exec_cfg: Dict[str, Any],
+    analysis: Dict[str, Any],
     quiet: bool = False,
 ) -> Dict[str, Any]:
     """Execute each test through the Claude CLI subprocess in parallel.
@@ -103,10 +104,7 @@ def _run_tests(
     if 0 < max_tests < len(tests):
         tests = tests[:max_tests]
 
-    skill_name = (
-        test_data.get("capabilities", [{}])[0].get("name", "the skill")
-        if test_data.get("capabilities") else "the skill"
-    )
+    skill_name = analysis.get("name", "the skill") or "the skill"
 
     n = len(tests)
     results: List[Optional[Dict[str, Any]]] = [None] * n  # ordered result slots

@@ -223,24 +223,30 @@ def _score_code(
     if total_count > 0:
         validity = (valid_count / total_count) * 10
     else:
-        validity = 0  # No scripts = no code quality to measure
+        validity = 5  # Baseline for no-script skills
 
     # 3. Error handling proxy (0-10)
-    # Proportional to the ratio of scripts with try/except, with a baseline
-    # of 2 to avoid harshly penalising skills with few scripts.
     if total_count > 0:
-        eh_count = sum(1 for r in script_list if r.get("has_try_except"))
-        eh_ratio = eh_count / total_count
-        eh_score = 2 + eh_ratio * 8  # baseline 2 + proportional 0-8
+        needs_eh = sum(1 for r in script_list if r.get("needs_error_handling"))
+        if needs_eh > 0:
+            # Ratio of I/O-performing scripts that actually use try/except
+            eh_covered = sum(
+                1 for r in script_list
+                if r.get("needs_error_handling") and r.get("has_try_except")
+            )
+            eh_ratio = eh_covered / needs_eh
+            eh_score = 2 + eh_ratio * 8
+        else:
+            eh_score = 8  # All pure-logic scripts — no error handling needed
     else:
-        eh_score = 0  # No scripts = no code quality to measure
+        eh_score = 5  # Baseline for no-script skills
 
     # 4. Script documentation (0-10)
     if total_count > 0:
         doc_count = sum(1 for r in script_list if r.get("has_docstring") or r.get("has_shebang"))
         doc_score = (doc_count / total_count) * 10
     else:
-        doc_score = 0  # No scripts = no code quality to measure
+        doc_score = 5  # Baseline for no-script skills
 
     subs = {
         "script_presence": round(presence, 1),
@@ -426,22 +432,18 @@ _body_missing_warned: bool = False
 
 
 def _read_skill_body(analysis: Dict[str, Any]) -> str:
-    """Read SKILL.md body stashed by the pipeline in analysis['_body'].
+    """Read SKILL.md body from analysis.
 
-    The pipeline (``_run_pipeline`` in ``run_tests.py``) injects the raw
-    SKILL.md body under the ``_body`` key before calling ``evaluate()``.
-    When ``evaluate()`` is called independently (e.g. in tests), this key
-    will be absent and Usability scoring silently degrades — consider
-    setting ``analysis["_body"]`` to the skill content for accurate scores.
+    ``analyze_skill()`` natively returns the body under the ``body`` key
+    (since v2.1).  For backwards compatibility with older pipeline runs
+    that stashed it under ``_body``, that key is checked as fallback.
     """
     global _body_missing_warned
-    body = analysis.get("_body")
-    if not body:
-        if not _body_missing_warned:
-            _body_missing_warned = True
-            warnings.warn(
-                "analysis['_body'] is missing — Usability scoring will be degraded. "
-                "Call evaluate() via the pipeline (run_tests._run_pipeline) or set "
-                "analysis['_body'] = skill_content before calling evaluate()."
-            )
-    return analysis.get("_body", "")
+    body = analysis.get("body") or analysis.get("_body") or ""
+    if not body and not _body_missing_warned:
+        _body_missing_warned = True
+        warnings.warn(
+            "analysis['body'] (and fallback '_body') is missing — "
+            "Usability scoring will be degraded. "
+        )
+    return body

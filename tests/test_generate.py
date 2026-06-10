@@ -289,6 +289,34 @@ class TestGenerateEdgeCases:
         edges = _generate_edge_cases("Just a normal paragraph.", {"name": "test", "description": ""})
         assert edges == []
 
+    def test_filters_low_quality_do_not_captures(self):
+        """Low-quality 'do not' captures from code/description text should be filtered."""
+        from scripts.generate import _generate_edge_cases
+        content = (
+            "Do not use this skill on production data without review.\n"
+            "The regex avoid matching descriptive text only\n"
+        )
+        edges = _generate_edge_cases(content, {"name": "test", "description": ""})
+        prompts = [e["prompt"] for e in edges]
+        assert any("Do not use this skill" in p for p in prompts)
+
+    def test_strips_code_blocks_before_scanning(self):
+        """Code blocks should be stripped before looking for do_not rules."""
+        from scripts.generate import _generate_edge_cases
+        content = (
+            "## Limitations\n"
+            "- This tool may produce false positives\n"
+            "```\n"
+            "# Do not run this command directly\n"
+            "```\n"
+        )
+        edges = _generate_edge_cases(content, {"name": "test", "description": ""})
+        prompts = [e["prompt"] for e in edges]
+        # The constraint_section should extract the first bullet
+        assert any("false positives" in p for p in prompts)
+        # The do_not text inside the code block should NOT appear
+        assert not any("Do not run" in p for p in prompts)
+
 
 class TestExtractCapabilities:
     """Tests for _extract_capabilities()."""
@@ -402,3 +430,8 @@ class TestIsQualityPrompt:
         """Phrases starting with a digit should be accepted."""
         from scripts.generate import _is_quality_prompt
         assert _is_quality_prompt("3-stage validation pipeline")
+
+    def test_rejects_newlines(self):
+        """Multi-line fragments should be rejected."""
+        from scripts.generate import _is_quality_prompt
+        assert not _is_quality_prompt("Do Not sections as test prompts\n4.")

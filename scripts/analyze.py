@@ -32,7 +32,7 @@ def analyze_skill(skill_dir: Path, config: Dict[str, Any], content: str = "") ->
 
     Returns
     -------
-    dict with keys: name, description, frontmatter, content, bundle,
+    dict with keys: name, description, frontmatter, content, bundle, body,
                     anti_patterns, trigger_info, scripts, issues, has_todo
     or dict with key ``error`` if SKILL.md is missing.
     """
@@ -60,6 +60,7 @@ def analyze_skill(skill_dir: Path, config: Dict[str, Any], content: str = "") ->
         "description": frontmatter.get("description", ""),
         "frontmatter": frontmatter,
         "content": content_analysis,
+        "body": content,
         "bundle": bundle_analysis,
         "anti_patterns": anti_patterns_found,
         "trigger_info": trigger_info,
@@ -217,9 +218,13 @@ _INLINE_CODE_RE = re.compile(r"`[^`]+`")
 
 
 def _strip_code_blocks(text: str) -> str:
-    """Remove fenced code blocks (```...```) and inline backtick code from *text*."""
+    """Remove fenced code blocks (```...```) and inline backtick code from *text*.
+
+    Collapses multiple spaces that may result from inline code removal.
+    """
     text = _FENCED_CODE_BLOCK_RE.sub("", text)
     text = _INLINE_CODE_RE.sub("", text)
+    text = re.sub(r" {2,}", " ", text)
     return text
 
 
@@ -309,12 +314,14 @@ def _validate_scripts(skill_dir: Path, config: Dict[str, Any]) -> Dict[str, Any]
                 syntax_valid = _check_python_syntax(f, content)
                 has_docstring = _check_python_docstring(content)
                 has_try_except = bool(re.search(r"\btry\b", content))
+                needs_eh = _needs_error_handling(content)
                 results.append({
                     "path": str(f.relative_to(skill_dir)),
                     "language": "python",
                     "syntax_valid": syntax_valid,
                     "has_docstring": has_docstring,
                     "has_try_except": has_try_except,
+                    "needs_error_handling": needs_eh,
                 })
             elif f.suffix == ".sh":
                 content = f.read_text(encoding="utf-8")
@@ -358,3 +365,30 @@ def _check_python_docstring(content: str) -> bool:
     """Return True if the Python source has a module-level docstring."""
     cleaned = re.sub(r"^#!.*\n", "", content)
     return bool(re.match(r'^\s*(?:"""|\'\'\')', cleaned))
+
+
+# ── I/O detection for error_handling scoring ───────────────────────────────
+
+_IO_PATTERNS = [
+    r"\bopen\s*\(",
+    r"\.(?:read|write|append)\s*\(",
+    r"\bsubprocess\b",
+    r"\brequests\b",
+    r"\binput\s*\(",
+    r"\bsocket\b",
+    r"\burllib\b",
+    r"\bjson\.(?:load|dump)",
+    r"\byaml\.(?:load|dump|safe_load|safe_dump)",
+    r"\bos\.(?:environ|remove|unlink|rmdir|makedirs|mkdir|rename)",
+    r"\bshutil\b",
+    r"\bsqlite3\b",
+]
+
+
+def _needs_error_handling(content: str) -> bool:
+    """Return True if the script performs I/O operations that warrant try/except.
+
+    Uses a set of heuristic patterns to detect file I/O, network calls,
+    subprocess execution, or other operations that commonly raise exceptions.
+    """
+    return any(re.search(p, content) for p in _IO_PATTERNS)

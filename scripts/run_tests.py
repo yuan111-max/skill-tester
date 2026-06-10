@@ -188,7 +188,6 @@ def _run_pipeline(
     if "error" in analysis:
         elapsed = time.monotonic() - start
         return {"error": analysis["error"], "elapsed": round(elapsed, 2)}
-    analysis["_body"] = skill_body
 
     if not quiet:
         issues = analysis.get("issues", [])
