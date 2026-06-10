@@ -1,13 +1,10 @@
-<p align="right">
-  <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/简体中文-555?style=flat-square" alt="简体中文"></a>
-</p>
-
 <div align="center">
 
 # 🧪 Skill-Tester
 
 **4-Stage Pipeline · 4-Dimension Scoring · Quantified Skill Quality**
 
+[![简体中文](https://img.shields.io/badge/简体中文-555?style=flat-square)](README.zh-CN.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/topprismdata/skill-tester/.github/workflows/test.yml?branch=main&label=CI&logo=github)](https://github.com/topprismdata/skill-tester/actions)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Code Style](https://img.shields.io/badge/code%20style-flake8-brightgreen)](https://github.com/PyCQA/flake8)
@@ -86,16 +83,19 @@ python scripts/run_tests.py path/to/my-skill --output json
 Every skill is evaluated across **4 equally-weighted dimensions** (25% each), producing a **0–10 final score** with actionable tier classifications.
 
 ```text
-                  Documentation
-                  ◄──────────►
-               ▲                ▲
-               │                │
-         Code  │     ★          │  Completeness
-         ◄─────┤   8.7/10      ├─────►
-               │   POWERFUL    │
-               ▼                ▼
-               ◄──────────►
-                  Usability
+╭────────────────────┬────────────────────╮
+│ 📝 Documentation   │ 💻 Code            │
+│ Weight: 25%        │ Weight: 25%        │
+│ Clarity, structure,│ Correctness, error │
+│ examples, triggers │ handling, docs     │
+├────────────────────┼────────────────────┤
+│ 📋 Completeness    │ 🎯 Usability       │
+│ Weight: 25%        │ Weight: 25%        │
+│ Capability coverage│ Trigger accuracy,  │
+│ edge case coverage │ instruction action │
+├────────────────────┴────────────────────┤
+│           ★  8.7 / 10  POWERFUL         │
+╰─────────────────────────────────────────╯
 ```
 
 | Dimension | Weight | What It Measures |

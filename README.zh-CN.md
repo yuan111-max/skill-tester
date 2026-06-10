@@ -1,13 +1,10 @@
-<p align="right">
-  <a href="README.md"><img src="https://img.shields.io/badge/English-555?style=flat-square" alt="English"></a>
-</p>
-
 <div align="center">
 
 # 🧪 Skill-Tester
 
 **4 阶段流水线 · 4 维评分 · 量化技能质量**
 
+[![English](https://img.shields.io/badge/English-555?style=flat-square)](README.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/topprismdata/skill-tester/.github/workflows/test.yml?branch=main&label=CI&logo=github)](https://github.com/topprismdata/skill-tester/actions)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Code Style](https://img.shields.io/badge/code%20style-flake8-brightgreen)](https://github.com/PyCQA/flake8)
@@ -86,16 +83,19 @@ python scripts/run_tests.py path/to/my-skill --output json
 所有技能通过 **4 个等权维度**（各 25%）评估，得出 **0–10 最终分**，并附带可操作的等级分类。
 
 ```text
-                    文档 (Documentation)
-                    ◄──────────►
-                 ▲                ▲
-                 │                │
-   代码 (Code)   │     ★          │  完整性 (Completeness)
-   ◄─────────────┤   8.7/10      ├─────────────►
-                 │   POWERFUL    │
-                 ▼                ▼
-                 ◄──────────►
-                 可用性 (Usability)
+╭────────────────────┬────────────────────╮
+│ 📝 文档            │ 💻 代码            │
+│ 权重: 25%          │ 权重: 25%          │
+│ 清晰度、结构、     │ 正确性、错误处理、  │
+│ 示例、触发条件     │ 文档字符串          │
+├────────────────────┼────────────────────┤
+│ 📋 完整性          │ 🎯 可用性          │
+│ 权重: 25%          │ 权重: 25%          │
+│ 能力覆盖范围、     │ 触发准确性、       │
+│ 边界情况覆盖       │ 指令可操作性       │
+├────────────────────┴────────────────────┤
+│           ★  8.7 / 10  POWERFUL          │
+╰─────────────────────────────────────────╯
 ```
 
 | 维度 | 权重 | 衡量内容 |
