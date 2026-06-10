@@ -1,5 +1,10 @@
 <div align="center">
 
+[![🇨🇳 简体中文](https://img.shields.io/badge/🇨🇳-简体中文-red?style=for-the-badge&labelColor=red&color=white)](#中文)
+[![🇬🇧 English](https://img.shields.io/badge/🇬🇧-English-blue?style=for-the-badge&labelColor=blue&color=white)](#english)
+
+<br>
+
 # 🧪 Skill-Tester
 
 **4-Stage Pipeline · 4-Dimension Scoring · Quantified Skill Quality**
@@ -11,16 +16,6 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?logo=github)](https://github.com/topprismdata/skill-tester/pulls)
 
 </div>
-
----
-
-<div align="center">
-
-[🇨🇳 **中文**](#-中文) &nbsp;·&nbsp; [🇬🇧 **English**](#-english)
-
-</div>
-
-<br>
 
 ---
 
